@@ -130,10 +130,10 @@ describe("typed contract generator package e2e", () => {
       assert.ok(fs.existsSync(path.join(pkgRoot, "src", `${contractName}.ts`)));
       assert.ok(fs.existsSync(path.join(pkgRoot, "src", `${contractName}__factory.ts`)));
       assert.ok(fs.existsSync(path.join(pkgRoot, "test", "e2e", `${contractName}.e2e.test.js`)));
-      assert.ok(fs.existsSync(path.join(pkgRoot, "examples", "deploy.ts")));
-      assert.ok(fs.existsSync(path.join(pkgRoot, "examples", "read-operations.ts")));
-      assert.ok(fs.existsSync(path.join(pkgRoot, "examples", "write-operations.ts")));
-      assert.ok(fs.existsSync(path.join(pkgRoot, "examples", "events.ts")));
+      assert.ok(fs.existsSync(path.join(pkgRoot, "examples", "deploy.js")));
+      assert.ok(fs.existsSync(path.join(pkgRoot, "examples", "read-operations.js")));
+      assert.ok(fs.existsSync(path.join(pkgRoot, "examples", "write-operations.js")));
+      assert.ok(fs.existsSync(path.join(pkgRoot, "examples", "events.js")));
       assert.ok(fs.existsSync(path.join(pkgRoot, "index.js")));
       assert.ok(fs.existsSync(path.join(pkgRoot, "index.d.ts")));
       assert.ok(fs.existsSync(path.join(pkgRoot, "README.md")));
@@ -266,8 +266,8 @@ describe("typed contract generator package e2e", () => {
       assert.ok(fs.existsSync(path.join(pkgRoot, "test", "e2e", "ConstructorParam.e2e.test.js")));
 
       // Multi-contract packages use per-contract example filenames.
-      assert.ok(fs.existsSync(path.join(pkgRoot, "examples", "deploy-Alpha.ts")));
-      assert.ok(fs.existsSync(path.join(pkgRoot, "examples", "deploy-ConstructorParam.ts")));
+      assert.ok(fs.existsSync(path.join(pkgRoot, "examples", "deploy-Alpha.js")));
+      assert.ok(fs.existsSync(path.join(pkgRoot, "examples", "deploy-ConstructorParam.js")));
 
       const readme = fs.readFileSync(path.join(pkgRoot, "README.md"), "utf8");
       assert.ok(readme.includes("Alpha"));

@@ -84,6 +84,9 @@ This repo includes a generator described in `SPEC.md` section 15.
 # Non-interactive
 node generate-sdk.js --abi path/to/abi.json --bin path/to/bytecode.bin --out ./generated --name MyContract --non-interactive
 
+# JavaScript output (with TypeScript `.d.ts` types)
+node generate-sdk.js --lang js --abi path/to/abi.json --bin path/to/bytecode.bin --out ./generated --name MyContract --non-interactive
+
 # Interactive
 node generate-sdk.js --abi path/to/abi.json --bin path/to/bytecode.bin
 ```
