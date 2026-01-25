@@ -3,6 +3,7 @@ output/**
 examples/node_modules/**
 examples/example-generated-sdk-ts/**
 examples/example-generated-sdk-js/**
+test/e2e/generated-sdks/**
 **/*.save
 **/*.swp
 **/*.tgz

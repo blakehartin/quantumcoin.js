@@ -290,20 +290,50 @@ function _findConstructor(abi) {
   return ctor || { type: "constructor", inputs: [] };
 }
 
-function _solTypeToExampleValueExpr(type) {
-  if (typeof type !== "string") return "undefined";
+function _solTypeToExampleValueExpr(param) {
+  const type = typeof param === "string" ? param : String(param && param.type ? param.type : "");
+  if (!type) return "undefined";
+
+  // Arrays (dynamic or fixed)
   if (type.endsWith("]")) {
     const inner = type.slice(0, type.lastIndexOf("["));
-    return `[${_solTypeToExampleValueExpr(inner)}]`;
+    const bracket = type.slice(type.lastIndexOf("[") + 1, type.length - 1);
+    const isFixed = bracket.length > 0;
+    const fixedLen = isFixed ? Number(bracket) : 0;
+    const elemParam = { ...(param || {}), type: inner };
+    const elemExpr = _solTypeToExampleValueExpr(elemParam);
+    if (isFixed && Number.isFinite(fixedLen) && fixedLen > 0) {
+      const n = Math.min(fixedLen, 2);
+      return `[${Array.from({ length: n }).map(() => elemExpr).join(", ")}]`;
+    }
+    return `[${elemExpr}]`;
   }
+
   if (type === "address") return "wallet.address";
   if (type === "bool") return "true";
   if (type === "string") return JSON.stringify("hello");
-  if (type === "bytes") return JSON.stringify("0x");
-  // NOTE: quantum-coin-js-sdk's ABI packer panics on JS BigInt inputs.
-  // Use plain numbers/strings for ints/uints and explicit hex for bytes32.
-  if (type === "bytes32") return JSON.stringify(`0x${"11".repeat(32)}`);
-  if (type.startsWith("uint") || type.startsWith("int")) return "123";
+  if (type === "bytes") return JSON.stringify("0x1234");
+
+  const mBytesN = type.match(/^bytes(\d+)$/);
+  if (mBytesN) {
+    const n = Number(mBytesN[1]);
+    if (Number.isFinite(n) && n >= 1 && n <= 32) return JSON.stringify(`0x${"11".repeat(n)}`);
+  }
+
+  // Use plain numbers/strings for ints/uints.
+  if (type.startsWith("uint")) return "123";
+  if (type.startsWith("int")) return "-123";
+
+  if (type === "tuple") {
+    const comps = Array.isArray(param && param.components) ? param.components : [];
+    if (comps.length === 0) return "{}";
+    const fields = comps.map((c, idx) => {
+      const name = c && typeof c.name === "string" && c.name ? c.name : `field${idx}`;
+      return `${JSON.stringify(name)}: ${_solTypeToExampleValueExpr(c)}`;
+    });
+    return `{ ${fields.join(", ")} }`;
+  }
+
   return "undefined";
 }
 
@@ -853,7 +883,7 @@ async function main() {
       // Back-compat: keep original example filenames for a single-contract package.
       const a = artifacts[0];
       const ctor = _findConstructor(a.abi);
-      const ctorArgsExpr = (ctor.inputs || []).map((i) => _solTypeToExampleValueExpr(i.type)).join(", ");
+      const ctorArgsExpr = (ctor.inputs || []).map((i) => _solTypeToExampleValueExpr(i)).join(", ");
 
       _writeText(
         path.join(outDir, "examples", "deploy.js"),
@@ -936,14 +966,14 @@ async function main() {
     console.log("symbol():", await contract.symbol());
   }
   if (typeof contract.totalSupply === "function") {
+    // Generated wrappers already unwrap single-return values to a hard type.
     const v = await contract.totalSupply();
-    const val = Array.isArray(v) ? v[0] : v;
-    console.log("totalSupply():", typeof val === "bigint" ? val.toString() : String(val));
+    console.log("totalSupply():", v.toString());
   }
   if (typeof contract.balanceOf === "function" && process.env.WALLET_ADDRESS) {
+    // Generated wrappers already unwrap single-return values to a hard type.
     const v = await contract.balanceOf(process.env.WALLET_ADDRESS);
-    const val = Array.isArray(v) ? v[0] : v;
-    console.log("balanceOf(WALLET_ADDRESS):", typeof val === "bigint" ? val.toString() : String(val));
+    console.log("balanceOf(WALLET_ADDRESS):", v.toString());
   }
 }
 
@@ -1049,7 +1079,7 @@ main().catch((e) => {
       // Multi-contract: avoid filename collisions.
       for (const a of artifacts) {
         const ctor = _findConstructor(a.abi);
-        const ctorArgsExpr = (ctor.inputs || []).map((i) => _solTypeToExampleValueExpr(i.type)).join(", ");
+        const ctorArgsExpr = (ctor.inputs || []).map((i) => _solTypeToExampleValueExpr(i)).join(", ");
 
         _writeText(
           path.join(outDir, "examples", `deploy-${a.contractName}.js`),

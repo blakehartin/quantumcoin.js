@@ -20,14 +20,352 @@ function _readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
-function _solTypeToTsInput(type) {
-  // Prefer the core ABI mapping type from quantumcoin/types.
-  // This keeps generator output aligned with the SDK's canonical Solidity typing.
-  return `SolidityInputValue<${JSON.stringify(type)}>`;
+function _stripArraySuffixes(s) {
+  let out = String(s || "");
+  while (out.endsWith("]")) {
+    out = out.slice(0, out.lastIndexOf("["));
+  }
+  return out;
 }
 
-function _solTypeToTsOutput(type) {
-  return `SolidityOutputValue<${JSON.stringify(type)}>`;
+function _parseArray(type) {
+  const t = String(type || "");
+  const idx = t.lastIndexOf("[");
+  if (idx < 0 || !t.endsWith("]")) return null;
+  const inner = t.slice(0, idx);
+  const bracket = t.slice(idx + 1, t.length - 1); // "" => dynamic
+  const fixedLen = bracket.length ? Number(bracket) : null;
+  return { inner, fixedLen: fixedLen != null && Number.isFinite(fixedLen) ? fixedLen : null };
+}
+
+function _tupleBaseNameFromInternalType(contractName, internalType) {
+  const raw = String(internalType || "");
+  if (!raw) return null;
+  const cleaned = _stripArraySuffixes(raw);
+  const m = cleaned.match(/struct\s+([A-Za-z0-9_]+)\.([A-Za-z0-9_]+)/);
+  if (m && m[2]) return m[2];
+  // Some compilers omit "struct" keyword.
+  const m2 = cleaned.match(/^([A-Za-z0-9_]+)\.([A-Za-z0-9_]+)$/);
+  if (m2 && m2[2]) return m2[2];
+  // Fallback: last segment
+  const parts = cleaned.split(".");
+  const last = parts[parts.length - 1];
+  if (last && last !== contractName) return last;
+  return null;
+}
+
+function _tupleKey(param) {
+  /** @param {any} p */
+  function norm(p) {
+    const out = {
+      name: String(p && p.name ? p.name : ""),
+      type: String(p && p.type ? p.type : ""),
+      internalType: String(p && p.internalType ? p.internalType : ""),
+      components: [],
+    };
+    const comps = Array.isArray(p && p.components) ? p.components : [];
+    out.components = comps.map((c) => norm(c));
+    return out;
+  }
+  return JSON.stringify(norm(param || {}));
+}
+
+function _collectTupleRegistry(contractName, abi) {
+  const byKey = new Map(); // key -> baseName
+  const usedNames = new Map(); // baseName -> key
+  let counter = 0;
+
+  /** @param {any} param */
+  function ensureTuple(param) {
+    const key = _tupleKey(param);
+    if (byKey.has(key)) return byKey.get(key);
+
+    const suggested =
+      _tupleBaseNameFromInternalType(contractName, param && param.internalType) || `${contractName}Tuple${++counter}`;
+    let baseName = suggested;
+    if (usedNames.has(baseName) && usedNames.get(baseName) !== key) {
+      let n = 1;
+      while (usedNames.has(`${suggested}_${n}`) && usedNames.get(`${suggested}_${n}`) !== key) n++;
+      baseName = `${suggested}_${n}`;
+    }
+    byKey.set(key, baseName);
+    usedNames.set(baseName, key);
+
+    // Recurse to nested tuples.
+    const comps = Array.isArray(param && param.components) ? param.components : [];
+    for (const c of comps) visitParam(c);
+    return baseName;
+  }
+
+  /** @param {any} param */
+  function visitParam(param) {
+    const type = String(param && param.type ? param.type : "");
+    if (!type) return;
+    const arr = _parseArray(type);
+    if (arr) {
+      visitParam({ ...(param || {}), type: arr.inner });
+      return;
+    }
+    if (type === "tuple") {
+      ensureTuple(param);
+      return;
+    }
+  }
+
+  for (const f of abi || []) {
+    if (!f || typeof f !== "object") continue;
+    const inputs = Array.isArray(f.inputs) ? f.inputs : [];
+    const outputs = Array.isArray(f.outputs) ? f.outputs : [];
+    for (const p of inputs) visitParam(p);
+    for (const p of outputs) visitParam(p);
+  }
+
+  return { byKey };
+}
+
+function _solParamToTs(param, mode, tupleReg) {
+  const type = String(param && param.type ? param.type : "");
+  const m = mode === "output" ? "output" : "input";
+
+  const arr = _parseArray(type);
+  if (arr) {
+    const innerParam = { ...(param || {}), type: arr.inner };
+    const innerTs = _solParamToTs(innerParam, mode, tupleReg);
+    if (arr.fixedLen != null) return `Types.SolFixedArray<${innerTs}, ${arr.fixedLen}>`;
+    return `Types.SolArray<${innerTs}>`;
+  }
+
+  if (type === "tuple") {
+    const key = _tupleKey(param);
+    const baseName = tupleReg && tupleReg.byKey ? tupleReg.byKey.get(key) : null;
+    const n = baseName || "Tuple";
+    return `${n}${m === "input" ? "Input" : "Output"}`;
+  }
+
+  // Elementary types (hard typed)
+  if (type === "address") return m === "input" ? "Types.AddressLike" : "Types.SolAddress";
+  if (type === "bool") return "boolean";
+  if (type === "string") return "string";
+  if (type === "bytes") return m === "input" ? "Types.BytesLike" : "Types.HexString";
+
+  const mBytesN = type.match(/^bytes(\d+)$/);
+  if (mBytesN) {
+    const n = Number(mBytesN[1]);
+    if (n === 32) return m === "input" ? "Types.Bytes32Like" : "Types.Bytes32";
+    if (Number.isFinite(n) && n >= 1 && n <= 32) return m === "input" ? `Types.Bytes${n}Like` : `Types.Bytes${n}`;
+  }
+
+  const mUint = type === "uint" ? ["uint", "256"] : type.match(/^uint(\d+)$/);
+  if (mUint) {
+    const bits = type === "uint" ? 256 : Number(mUint[1]);
+    const b = Number.isFinite(bits) ? bits : 256;
+    return m === "input" ? `Types.Uint${b}Like` : `Types.Uint${b}`;
+  }
+
+  const mInt = type === "int" ? ["int", "256"] : type.match(/^int(\d+)$/);
+  if (mInt) {
+    const bits = type === "int" ? 256 : Number(mInt[1]);
+    const b = Number.isFinite(bits) ? bits : 256;
+    return m === "input" ? `Types.Int${b}Like` : `Types.Int${b}`;
+  }
+
+  // Fallback (unknown type)
+  return "any";
+}
+
+function _solParamToJsDoc(param, mode, tupleReg) {
+  const type = String(param && param.type ? param.type : "");
+  const m = mode === "output" ? "output" : "input";
+
+  const arr = _parseArray(type);
+  if (arr) {
+    const innerParam = { ...(param || {}), type: arr.inner };
+    const inner = _solParamToJsDoc(innerParam, mode, tupleReg);
+    return `Array<${inner}>`;
+  }
+
+  if (type === "tuple") {
+    const key = _tupleKey(param);
+    const baseName = tupleReg && tupleReg.byKey ? tupleReg.byKey.get(key) : null;
+    const n = baseName || "Tuple";
+    return `${n}${m === "input" ? "Input" : "Output"}`;
+  }
+
+  if (type === "address") {
+    return m === "input" ? `import("quantumcoin/types").AddressLike` : `import("quantumcoin/types").SolAddress`;
+  }
+  if (type === "bool") return "boolean";
+  if (type === "string") return "string";
+  if (type === "bytes") {
+    return m === "input" ? `import("quantumcoin/types").BytesLike` : `import("quantumcoin/types").HexString`;
+  }
+
+  const mBytesN = type.match(/^bytes(\d+)$/);
+  if (mBytesN) {
+    const n = Number(mBytesN[1]);
+    if (n === 32) {
+      return m === "input" ? `import("quantumcoin/types").Bytes32Like` : `import("quantumcoin/types").Bytes32`;
+    }
+    if (Number.isFinite(n) && n >= 1 && n <= 32) {
+      return m === "input"
+        ? `import("quantumcoin/types").Bytes${n}Like`
+        : `import("quantumcoin/types").Bytes${n}`;
+    }
+  }
+
+  const mUint = type === "uint" ? ["uint", "256"] : type.match(/^uint(\d+)$/);
+  if (mUint) {
+    const bits = type === "uint" ? 256 : Number(mUint[1]);
+    const b = Number.isFinite(bits) ? bits : 256;
+    return m === "input"
+      ? `import("quantumcoin/types").Uint${b}Like`
+      : `import("quantumcoin/types").Uint${b}`;
+  }
+
+  const mInt = type === "int" ? ["int", "256"] : type.match(/^int(\d+)$/);
+  if (mInt) {
+    const bits = type === "int" ? 256 : Number(mInt[1]);
+    const b = Number.isFinite(bits) ? bits : 256;
+    return m === "input"
+      ? `import("quantumcoin/types").Int${b}Like`
+      : `import("quantumcoin/types").Int${b}`;
+  }
+
+  return "any";
+}
+
+function _renderTupleTypeDefs(contractName, abi, tupleReg) {
+  const lines = [];
+  void contractName;
+
+  function _findTupleParamByKey(key) {
+    /** @param {any} p */
+    function walkParam(p) {
+      if (!p || typeof p !== "object") return null;
+      const t = String(p.type || "");
+      if (!t) return null;
+      const arr = _parseArray(t);
+      if (arr) return walkParam({ ...(p || {}), type: arr.inner });
+      if (t === "tuple") {
+        if (_tupleKey(p) === key) return p;
+        const comps = Array.isArray(p.components) ? p.components : [];
+        for (const c of comps) {
+          const found = walkParam(c);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+
+    for (const f of abi || []) {
+      if (!f || typeof f !== "object") continue;
+      const inputs = Array.isArray(f.inputs) ? f.inputs : [];
+      const outputs = Array.isArray(f.outputs) ? f.outputs : [];
+      for (const p of inputs) {
+        const found = walkParam(p);
+        if (found) return found;
+      }
+      for (const p of outputs) {
+        const found = walkParam(p);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  /** @param {any} param */
+  function tupleFields(param, mode) {
+    const comps = Array.isArray(param && param.components) ? param.components : [];
+    const fields = [];
+    for (let i = 0; i < comps.length; i++) {
+      const c = comps[i];
+      const field = _safeIdent((c && c.name) || `field${i}`);
+      fields.push(`  ${field}: ${_solParamToTs(c, mode, tupleReg)};`);
+    }
+    return fields;
+  }
+
+  // Render each known tuple once (as Input + Output).
+  for (const [key, baseName] of tupleReg.byKey.entries()) {
+    const param = _findTupleParamByKey(key);
+    if (!param) continue;
+
+    lines.push(`export type ${baseName}Input = {`);
+    lines.push(...tupleFields(param, "input"));
+    lines.push(`};`);
+    lines.push(``);
+    lines.push(`export type ${baseName}Output = {`);
+    lines.push(...tupleFields(param, "output"));
+    lines.push(`};`);
+    lines.push(``);
+  }
+
+  return lines.length ? lines.join("\n") + "\n" : "";
+}
+
+function _renderTupleJsDocTypeDefs(contractName, abi, tupleReg) {
+  void contractName;
+  if (!tupleReg || !tupleReg.byKey || tupleReg.byKey.size === 0) return "";
+
+  const lines = [];
+
+  /** @param {string} key */
+  function findTupleParamByKey(key) {
+    /** @param {any} p */
+    function walkParam(p) {
+      if (!p || typeof p !== "object") return null;
+      const t = String(p.type || "");
+      if (!t) return null;
+      const arr = _parseArray(t);
+      if (arr) return walkParam({ ...(p || {}), type: arr.inner });
+      if (t === "tuple") {
+        if (_tupleKey(p) === key) return p;
+        const comps = Array.isArray(p.components) ? p.components : [];
+        for (const c of comps) {
+          const found = walkParam(c);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+
+    for (const f of abi || []) {
+      if (!f || typeof f !== "object") continue;
+      const inputs = Array.isArray(f.inputs) ? f.inputs : [];
+      const outputs = Array.isArray(f.outputs) ? f.outputs : [];
+      for (const p of inputs) {
+        const found = walkParam(p);
+        if (found) return found;
+      }
+      for (const p of outputs) {
+        const found = walkParam(p);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  function renderTypedef(typeName, tupleParam, mode) {
+    const comps = Array.isArray(tupleParam && tupleParam.components) ? tupleParam.components : [];
+    lines.push("/**");
+    lines.push(` * @typedef {Object} ${typeName}`);
+    for (let i = 0; i < comps.length; i++) {
+      const c = comps[i];
+      const field = _safeIdent((c && c.name) || `field${i}`);
+      lines.push(` * @property {${_solParamToJsDoc(c, mode, tupleReg)}} ${field}`);
+    }
+    lines.push(" */");
+    lines.push("");
+  }
+
+  for (const [key, baseName] of tupleReg.byKey.entries()) {
+    const param = findTupleParamByKey(key);
+    if (!param) continue;
+    renderTypedef(`${baseName}Input`, param, "input");
+    renderTypedef(`${baseName}Output`, param, "output");
+  }
+
+  return lines.join("\n");
 }
 
 function _cap(s) {
@@ -43,20 +381,53 @@ function _findConstructor(abi) {
   return ctor || { type: "constructor", inputs: [] };
 }
 
-function _solTypeToTestValueExpr(type) {
-  // Arrays
+function _solTypeToTestValueExpr(param) {
+  const type = typeof param === "string" ? param : String(param && param.type ? param.type : "");
+
+  // Arrays (dynamic or fixed)
   if (type.endsWith("]")) {
     const inner = type.slice(0, type.lastIndexOf("["));
-    return `[${_solTypeToTestValueExpr(inner)}]`;
+    const bracket = type.slice(type.lastIndexOf("[") + 1, type.length - 1);
+    const isFixed = bracket.length > 0;
+    const fixedLen = isFixed ? Number(bracket) : 0;
+    const elemParam = { ...(param || {}), type: inner };
+
+    const elemExpr = _solTypeToTestValueExpr(elemParam);
+    if (isFixed && Number.isFinite(fixedLen) && fixedLen > 0) {
+      const n = Math.min(fixedLen, 2); // cap to keep tests fast
+      return `[${Array.from({ length: n }).map(() => elemExpr).join(", ")}]`;
+    }
+    return `[${elemExpr}]`;
   }
+
   if (type === "address") return "wallet.address";
   if (type === "bool") return "true";
   if (type === "string") return JSON.stringify("hello");
-  if (type === "bytes") return JSON.stringify("0x");
-  // NOTE: quantum-coin-js-sdk's ABI packer panics on JS BigInt inputs.
-  // Use plain numbers/strings for ints/uints and explicit hex for bytes32.
-  if (type === "bytes32") return JSON.stringify(`0x${"11".repeat(32)}`);
-  if (type.startsWith("uint") || type.startsWith("int")) return "123";
+  if (type === "bytes") return JSON.stringify("0x1234");
+
+  // Fixed-size bytes
+  const mBytesN = type.match(/^bytes(\d+)$/);
+  if (mBytesN) {
+    const n = Number(mBytesN[1]);
+    if (Number.isFinite(n) && n >= 1 && n <= 32) return JSON.stringify(`0x${"11".repeat(n)}`);
+  }
+
+  // NOTE: quantum-coin-js-sdk WASM interop does not accept BigInt values directly.
+  // Use plain numbers/strings for ints/uints.
+  if (type.startsWith("uint")) return "123";
+  if (type.startsWith("int")) return "-123";
+
+  // Tuple / struct
+  if (type === "tuple") {
+    const comps = Array.isArray(param && param.components) ? param.components : [];
+    if (comps.length === 0) return "{}";
+    const fields = comps.map((c, idx) => {
+      const name = c && typeof c.name === "string" && c.name ? c.name : `field${idx}`;
+      return `${JSON.stringify(name)}: ${_solTypeToTestValueExpr(c)}`;
+    });
+    return `{ ${fields.join(", ")} }`;
+  }
+
   // Fallback
   return "undefined";
 }
@@ -99,11 +470,14 @@ function _typesDts() {
 
 function _renderContractTs({ contractName, abi, bytecode, docs }) {
   const functions = (abi || []).filter((f) => f && f.type === "function");
+  const tupleReg = _collectTupleRegistry(contractName, abi);
 
   const contractTsLines = [];
   contractTsLines.push(`// Auto-generated by quantumcoin-sdk-generator`);
   contractTsLines.push(`import { Contract, ContractTransactionResponse, ContractRunner, TransactionResponse } from "quantumcoin";`);
-  contractTsLines.push(`import type { SolidityInputValue, SolidityOutputValue } from "./types";`);
+  contractTsLines.push(`import type * as Types from "./types";`);
+  contractTsLines.push(``);
+  contractTsLines.push(_renderTupleTypeDefs(contractName, abi, tupleReg).trimEnd());
   contractTsLines.push(``);
   contractTsLines.push(`/**`);
   contractTsLines.push(` * ${contractName} - A typed contract interface for ${contractName}`);
@@ -135,7 +509,7 @@ function _renderContractTs({ contractName, abi, bytecode, docs }) {
     const inputs = fn.inputs || [];
     const outputs = fn.outputs || [];
     const argsSig = inputs
-      .map((p, i) => `${_safeIdent(p.name || `arg${i}`)}: ${_solTypeToTsInput(p.type)}`)
+      .map((p, i) => `${_safeIdent(p.name || `arg${i}`)}: ${_solParamToTs(p, "input", tupleReg)}`)
       .join(", ");
     const argsNames = inputs.map((p, i) => _safeIdent(p.name || `arg${i}`)).join(", ");
 
@@ -144,9 +518,9 @@ function _renderContractTs({ contractName, abi, bytecode, docs }) {
 
     let returnTs;
     if (isView) {
-      if (outputs.length === 0) returnTs = "Promise<any>";
-      else if (outputs.length === 1) returnTs = `Promise<${_solTypeToTsOutput(outputs[0].type)}>`;
-      else returnTs = `Promise<[${outputs.map((o) => _solTypeToTsOutput(o.type)).join(", ")}]>`;
+      if (outputs.length === 0) returnTs = "Promise<void>";
+      else if (outputs.length === 1) returnTs = `Promise<${_solParamToTs(outputs[0], "output", tupleReg)}>`;
+      else returnTs = `Promise<[${outputs.map((o) => _solParamToTs(o, "output", tupleReg)).join(", ")}]>`;
     } else {
       returnTs = "Promise<ContractTransactionResponse>";
     }
@@ -167,10 +541,15 @@ function _renderContractTs({ contractName, abi, bytecode, docs }) {
     if (isView) {
       contractTsLines.push(`  async ${name}(${argsSig}): ${returnTs} {`);
       contractTsLines.push(`    const res = await this.call(${JSON.stringify(name)}, [${argsNames}]);`);
-      if (outputs.length === 1) {
-        contractTsLines.push(`    return (Array.isArray(res) ? res[0] : res) as any;`);
+      if (outputs.length === 0) {
+        contractTsLines.push(`    void res;`);
+        contractTsLines.push(`    return;`);
+      } else if (outputs.length === 1) {
+        contractTsLines.push(`    return (Array.isArray(res) ? res[0] : res) as unknown as ${_solParamToTs(outputs[0], "output", tupleReg)};`);
       } else {
-        contractTsLines.push(`    return res as any;`);
+        contractTsLines.push(
+          `    return res as unknown as [${outputs.map((o) => _solParamToTs(o, "output", tupleReg)).join(", ")}];`,
+        );
       }
       contractTsLines.push(`  }`);
     } else {
@@ -186,11 +565,19 @@ function _renderContractTs({ contractName, abi, bytecode, docs }) {
 
 function _renderContractJs({ contractName, abi, bytecode, docs }) {
   const functions = (abi || []).filter((f) => f && f.type === "function");
+  const tupleReg = _collectTupleRegistry(contractName, abi);
 
   const lines = [];
   lines.push(`// Auto-generated by quantumcoin-sdk-generator`);
   lines.push(`const { Contract } = require("quantumcoin");`);
   lines.push("");
+
+  const tupleDoc = _renderTupleJsDocTypeDefs(contractName, abi, tupleReg).trimEnd();
+  if (tupleDoc) {
+    lines.push(tupleDoc);
+    lines.push("");
+  }
+
   lines.push("/**");
   lines.push(` * ${contractName} - A typed contract interface for ${contractName}`);
   if (docs && typeof docs.contract === "string" && docs.contract.trim()) {
@@ -238,15 +625,29 @@ function _renderContractJs({ contractName, abi, bytecode, docs }) {
     }
     for (const p of inputs) {
       const pName = _safeIdent(p.name || "arg");
-      lines.push(`   * @param {any} ${pName}`);
+      lines.push(`   * @param {${_solParamToJsDoc(p, "input", tupleReg)}} ${pName}`);
     }
-    lines.push(`   * @returns {Promise<any>}`);
+    if (isView) {
+      if (outputs.length === 0) {
+        lines.push(`   * @returns {Promise<void>}`);
+      } else if (outputs.length === 1) {
+        lines.push(`   * @returns {Promise<${_solParamToJsDoc(outputs[0], "output", tupleReg)}>} `);
+      } else {
+        lines.push(
+          `   * @returns {Promise<[${outputs.map((o) => _solParamToJsDoc(o, "output", tupleReg)).join(", ")}]>}`,
+        );
+      }
+    } else {
+      lines.push(`   * @returns {Promise<import("quantumcoin").ContractTransactionResponse>}`);
+    }
     lines.push("   */");
 
     if (isView) {
       lines.push(`  async ${name}(${argsNames}) {`);
       lines.push(`    const res = await this.call(${JSON.stringify(name)}, [${argsNames}]);`);
-      if (outputs.length === 1) {
+      if (outputs.length === 0) {
+        lines.push(`    return;`);
+      } else if (outputs.length === 1) {
         lines.push(`    return Array.isArray(res) ? res[0] : res;`);
       } else {
         lines.push(`    return res;`);
@@ -268,11 +669,17 @@ function _renderContractJs({ contractName, abi, bytecode, docs }) {
 
 function _renderContractDts({ contractName, abi }) {
   const functions = (abi || []).filter((f) => f && f.type === "function");
+  const tupleReg = _collectTupleRegistry(contractName, abi);
   const lines = [];
   lines.push(`// Auto-generated by quantumcoin-sdk-generator`);
   lines.push(`import { Contract, ContractRunner, ContractTransactionResponse, TransactionResponse } from "quantumcoin";`);
-  lines.push(`import type { SolidityInputValue, SolidityOutputValue } from "./types";`);
+  lines.push(`import type * as Types from "./types";`);
   lines.push("");
+  const tupleDefs = _renderTupleTypeDefs(contractName, abi, tupleReg).trimEnd();
+  if (tupleDefs) {
+    lines.push(tupleDefs);
+    lines.push("");
+  }
   lines.push(`export declare class ${contractName} extends Contract {`);
   lines.push(`  static readonly abi: readonly any[];`);
   lines.push(`  static readonly bytecode: string;`);
@@ -284,16 +691,16 @@ function _renderContractDts({ contractName, abi }) {
     const inputs = fn.inputs || [];
     const outputs = fn.outputs || [];
 
-    const argsSig = inputs.map((p, i) => `${_safeIdent(p.name || `arg${i}`)}: ${_solTypeToTsInput(p.type)}`).join(", ");
+    const argsSig = inputs.map((p, i) => `${_safeIdent(p.name || `arg${i}`)}: ${_solParamToTs(p, "input", tupleReg)}`).join(", ");
 
     const mut = fn.stateMutability || "";
     const isView = mut === "view" || mut === "pure";
 
     let returnTs;
     if (isView) {
-      if (outputs.length === 0) returnTs = "Promise<any>";
-      else if (outputs.length === 1) returnTs = `Promise<${_solTypeToTsOutput(outputs[0].type)}>`;
-      else returnTs = `Promise<[${outputs.map((o) => _solTypeToTsOutput(o.type)).join(", ")}]>`;
+      if (outputs.length === 0) returnTs = "Promise<void>";
+      else if (outputs.length === 1) returnTs = `Promise<${_solParamToTs(outputs[0], "output", tupleReg)}>`;
+      else returnTs = `Promise<[${outputs.map((o) => _solParamToTs(o, "output", tupleReg)).join(", ")}]>`;
     } else {
       returnTs = "Promise<ContractTransactionResponse>";
     }
@@ -313,12 +720,32 @@ function _renderFactoryTs({ contractName, abi }) {
   const factoryName = `${contractName}__factory`;
   const ctor = _findConstructor(abi);
   const ctorInputs = (ctor && ctor.inputs) || [];
+  const tupleReg = _collectTupleRegistry(contractName, abi);
 
   const factoryTsLines = [];
   factoryTsLines.push(`// Auto-generated by quantumcoin-sdk-generator`);
   factoryTsLines.push(`import { ContractFactory, ContractRunner, getCreateAddress } from "quantumcoin";`);
   factoryTsLines.push(`import { ${contractName} } from "./${contractName}";`);
-  factoryTsLines.push(`import type { SolidityInputValue, SolidityOutputValue } from "./types";`);
+  factoryTsLines.push(`import type * as Types from "./types";`);
+
+  // Import tuple input types used by the constructor (if any)
+  const ctorTupleTypes = new Set();
+  const visit = (p) => {
+    const t = String(p && p.type ? p.type : "");
+    const arr = _parseArray(t);
+    if (arr) return visit({ ...(p || {}), type: arr.inner });
+    if (t === "tuple") {
+      const key = _tupleKey(p);
+      const base = tupleReg.byKey.get(key);
+      if (base) ctorTupleTypes.add(`${base}Input`);
+      const comps = Array.isArray(p && p.components) ? p.components : [];
+      for (const c of comps) visit(c);
+    }
+  };
+  for (const p of ctorInputs) visit(p);
+  if (ctorTupleTypes.size) {
+    factoryTsLines.push(`import type { ${Array.from(ctorTupleTypes).sort().join(", ")} } from "./${contractName}";`);
+  }
   factoryTsLines.push(``);
   factoryTsLines.push(`export class ${factoryName} extends ContractFactory {`);
   factoryTsLines.push(`  constructor(runner: ContractRunner) {`);
@@ -328,7 +755,7 @@ function _renderFactoryTs({ contractName, abi }) {
 
   // Typed deploy method (uses constructor args + optional overrides)
   const deployArgsSig = ctorInputs
-    .map((p, i) => `${_safeIdent(p.name || `arg${i}`)}: ${_solTypeToTsInput(p.type)}`)
+    .map((p, i) => `${_safeIdent(p.name || `arg${i}`)}: ${_solParamToTs(p, "input", tupleReg)}`)
     .join(", ");
   const deployArgsNames = ctorInputs.map((p, i) => _safeIdent(p.name || `arg${i}`)).join(", ");
 
@@ -399,13 +826,32 @@ function _renderFactoryDts({ contractName, abi }) {
   const factoryName = `${contractName}__factory`;
   const ctor = _findConstructor(abi);
   const ctorInputs = (ctor && ctor.inputs) || [];
-  const deployArgsSig = ctorInputs.map((p, i) => `${_safeIdent(p.name || `arg${i}`)}: ${_solTypeToTsInput(p.type)}`).join(", ");
+  const tupleReg = _collectTupleRegistry(contractName, abi);
+  const deployArgsSig = ctorInputs.map((p, i) => `${_safeIdent(p.name || `arg${i}`)}: ${_solParamToTs(p, "input", tupleReg)}`).join(", ");
 
   const lines = [];
   lines.push(`// Auto-generated by quantumcoin-sdk-generator`);
   lines.push(`import { ContractFactory, ContractRunner } from "quantumcoin";`);
   lines.push(`import { ${contractName} } from "./${contractName}";`);
-  lines.push(`import type { SolidityInputValue, SolidityOutputValue } from "./types";`);
+  lines.push(`import type * as Types from "./types";`);
+
+  const ctorTupleTypes = new Set();
+  const visit = (p) => {
+    const t = String(p && p.type ? p.type : "");
+    const arr = _parseArray(t);
+    if (arr) return visit({ ...(p || {}), type: arr.inner });
+    if (t === "tuple") {
+      const key = _tupleKey(p);
+      const base = tupleReg.byKey.get(key);
+      if (base) ctorTupleTypes.add(`${base}Input`);
+      const comps = Array.isArray(p && p.components) ? p.components : [];
+      for (const c of comps) visit(c);
+    }
+  };
+  for (const p of ctorInputs) visit(p);
+  if (ctorTupleTypes.size) {
+    lines.push(`import type { ${Array.from(ctorTupleTypes).sort().join(", ")} } from "./${contractName}";`);
+  }
   lines.push("");
   lines.push(`export declare class ${factoryName} extends ContractFactory {`);
   lines.push(`  constructor(runner: ContractRunner);`);
@@ -463,7 +909,7 @@ function generateTransactionalTestJs(opts) {
   const ctor = _findConstructor(abi);
   const ctorInputs = ctor.inputs || [];
 
-  const ctorArgsExpr = ctorInputs.map((i) => _solTypeToTestValueExpr(i.type)).join(", ");
+  const ctorArgsExpr = ctorInputs.map((i) => _solTypeToTestValueExpr(i)).join(", ");
 
   // ---------------------------------------------------------------------------
   // ERC-20 style assertions (optional)
@@ -512,15 +958,13 @@ function generateTransactionalTestJs(opts) {
     const nm = await contract.name();
     assert.equal(nm, ${JSON.stringify(erc20TokenName)});
 
-    const supplyRaw = await contract.${supplyMethodName}();
-    const supplyVal = Array.isArray(supplyRaw) ? supplyRaw[0] : supplyRaw;
-    const supplyBI = typeof supplyVal === "bigint" ? supplyVal : BigInt(supplyVal);
-    assert.equal(supplyBI, ${erc20InitialSupply}n);
+    // Generated wrappers already unwrap single-return values to a hard type (bigint for uints).
+    const supply = await contract.${supplyMethodName}();
+    assert.equal(supply, ${erc20InitialSupply}n);
 
-    const balRaw = await contract.balanceOf(wallet.address);
-    const balVal = Array.isArray(balRaw) ? balRaw[0] : balRaw;
-    const balBI = typeof balVal === "bigint" ? balVal : BigInt(balVal);
-    assert.equal(balBI, ${erc20InitialSupply}n);
+    // Generated wrappers already unwrap single-return values to a hard type (bigint for uints).
+    const bal = await contract.balanceOf(wallet.address);
+    assert.equal(bal, ${erc20InitialSupply}n);
 `
       : "";
 
@@ -546,7 +990,7 @@ function generateTransactionalTestJs(opts) {
     writeFn && (writeFn.inputs || []).length === 1 && (writeFn.inputs[0].type || "").startsWith("uint")
       ? "456"
       : writeFn
-        ? (writeFn.inputs || []).map((i) => _solTypeToTestValueExpr(i.type)).join(", ")
+        ? (writeFn.inputs || []).map((i) => _solTypeToTestValueExpr(i)).join(", ")
         : "";
 
   const canAssertValueChange =
@@ -627,9 +1071,7 @@ describe("${contractName} transactional", () => {
 
     ${canAssertValueChange ? `// Assert value change (best-effort; normalize to BigInt)
     const after = await contract.${viewNoArg.name}();
-    const afterValue = Array.isArray(after) ? after[0] : after;
-    const afterBI = typeof afterValue === "bigint" ? afterValue : BigInt(afterValue);
-    assert.equal(afterBI, 456n);` : `// No compatible getter+setter pair detected for value assertions.`}
+    assert.equal(after, 456n);` : `// No compatible getter+setter pair detected for value assertions.`}
   }, { timeout: 900_000 });
 });
 `;
