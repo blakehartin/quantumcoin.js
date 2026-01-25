@@ -26,6 +26,9 @@ describe("generate-sdk.js --artifacts-json", () => {
     const betaAbi = [
       { type: "function", name: "set", stateMutability: "nonpayable", inputs: [{ name: "value", type: "uint256" }], outputs: [] },
     ];
+    const gammaAbi = [
+      { type: "function", name: "ping", stateMutability: "pure", inputs: [], outputs: [{ name: "", type: "bool" }] },
+    ];
 
     fs.writeFileSync(path.join(tmp, "Alpha.abi.json"), JSON.stringify(alphaAbi, null, 2), "utf8");
     fs.writeFileSync(path.join(tmp, "Alpha.bin"), "0x6000", "utf8");
@@ -39,6 +42,8 @@ describe("generate-sdk.js --artifacts-json", () => {
         [
           { abi: "./Alpha.abi.json", bin: "./Alpha.bin" },
           { abi: "./Beta.abi.json", bin: "./Beta.bin" },
+          // Inline string form: abi is a JSON string; bin is inline bytecode (string).
+          { name: "Gamma", abi: JSON.stringify(gammaAbi), bin: "6000" },
         ],
         null,
         2,
@@ -60,6 +65,8 @@ describe("generate-sdk.js --artifacts-json", () => {
     assert.ok(fs.existsSync(path.join(outDir, "Alpha__factory.ts")));
     assert.ok(fs.existsSync(path.join(outDir, "Beta.ts")));
     assert.ok(fs.existsSync(path.join(outDir, "Beta__factory.ts")));
+    assert.ok(fs.existsSync(path.join(outDir, "Gamma.ts")));
+    assert.ok(fs.existsSync(path.join(outDir, "Gamma__factory.ts")));
   });
 });
 
