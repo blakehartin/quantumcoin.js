@@ -1,0 +1,12 @@
+node_modules/**
+output/**
+examples/node_modules/**
+**/*.save
+**/*.swp
+**/*.tgz
+dist/*.gz
+.idea
+.vscode
+**/.DS_Store
+
+.iterm2-project

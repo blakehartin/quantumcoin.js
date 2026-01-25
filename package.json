@@ -1,0 +1,54 @@
+{
+  "name": "quantumcoin",
+  "version": "7.0.1",
+  "description": "QuantumCoin SDK - a complete SDK for dapps",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./config": "./config.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\"",
+    "test:unit": "node --test \"test/unit/**/*.test.js\"",
+    "test:integration": "node --test \"test/integration/**/*.test.js\"",
+    "test:security": "node --test \"test/security/**/*.test.js\"",
+    "test:non-transactional": "node --test \"test/unit/**/*.test.js\" \"test/integration/**/*.test.js\" \"test/security/**/*.test.js\"",
+    "test:e2e": "node --test --test-concurrency=1 \"test/e2e/**/*.test.js\"",
+    "example": "node examples/example.js",
+    "example:provider": "node examples/example.js",
+    "example:wallet": "node examples/wallet-offline.js",
+    "example:contract:read": "node examples/read-operations.js",
+    "example:events": "node examples/events.js",
+    "build": "npx -p typescript tsc src/index.js --declaration --allowJs --emitDeclarationOnly"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/quantumcoinproject/quantumcoin.js.git"
+  },
+  "files": [
+    "**"
+  ],
+  "keywords": [
+    "pqc",
+    "cryptography",
+    "quantum coins",
+    "quantum coin",
+    "quantumcoin",
+    "blockchain"
+  ],
+  "author": "QuantumCoin Community",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/quantumcoinproject/quantumcoin.js/issues"
+  },
+  "homepage": "https://github.com/quantumcoinproject/quantumcoin.js#readme",
+  "bin": {
+    "quantumcoin-sdk-generator": "./generate-sdk.js"
+  },
+  "dependencies": {
+    "quantum-coin-pqc-js-sdk": "^1.0.0",
+    "seed-words": "^1.0.1",
+    "quantum-coin-js-sdk": "1.0.27"
+  }
+}

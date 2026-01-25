@@ -1,0 +1,17 @@
+{
+  "name": "quantumcoinjs-sdk-examples",
+  "version": "1.0.0",
+  "description": "QuantumCoin.js SDK Examples",
+  "main": "example.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "QuantumCoin Community",
+  "license": "MIT",
+  "dependencies": {
+    "ethers": "^6.13.4",
+    "quantum-coin-js-sdk": "1.0.27",
+    "quantum-coin-pqc-js-sdk": "^1.0.5",
+    "quantumcoin": "file:.."
+  }
+}
