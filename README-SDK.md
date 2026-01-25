@@ -575,16 +575,21 @@ QuantumCoin.js exposes core Solidity-related types for TypeScript users.
 - `BytesLike` (`string | Uint8Array`)
 - `BigNumberish` (`string | number | bigint`)
 - `SolidityTypeName` (ABI type string model)
-- `SolidityInputValue<T>` / `SolidityOutputValue<T>` (type-level mapping from ABI type strings to JS values)
+- **Hard Solidity aliases** (preferred for typed wrappers):
+  - Integers: `Uint256Like` / `Uint256`, `Int256Like` / `Int256` (and all widths `Uint8Like`…`Uint256Like`, `Int8Like`…`Int256Like`)
+  - Fixed bytes: `Bytes32Like` / `Bytes32` (and `Bytes1Like`…`Bytes32Like`)
+  - Arrays/tuples helpers: `SolArray<T>`, `SolFixedArray<T, N>`, `SolStruct<T>`
+- `SolidityInputValue<T>` / `SolidityOutputValue<T>` (advanced type-level mapping from ABI type strings to JS values; the generator no longer uses these for wrapper signatures)
 
 Example:
 
 ```ts
-import type { AddressLike, BigNumberish, SolidityInputValue } from "quantumcoin/types";
+import type { AddressLike, BigNumberish, Uint256Like, Uint256 } from "quantumcoin/types";
 
 const to: AddressLike = "0x0000000000000000000000000000000000000000000000000000000000001000";
 const amount: BigNumberish = "123";
-type U256In = SolidityInputValue<"uint256">; // BigNumberish
+const asInput: Uint256Like = amount;
+const asOutput: Uint256 = 123n;
 ```
 
 ### Encoding utilities
@@ -654,6 +659,15 @@ type U256In = SolidityInputValue<"uint256">; // BigNumberish
 It supports generating:
 - **TypeScript source** (`--lang ts`, default)
 - **JavaScript source + TypeScript declarations** (`--lang js`)
+
+**Typing behaviour (generated wrappers)**
+
+- **Hard types**: wrapper signatures use concrete types from `quantumcoin/types` (e.g. `Uint256Like` for inputs, `Uint256` for outputs).
+- **Single output unwrapping**: functions returning one value return the value directly (not `[value]`).
+- **Multiple outputs**: returned as a tuple type (e.g. `Promise<[Uint256, Bool]>`).
+- **No outputs**: `Promise<void>`.
+- **Structs / tuples**: emitted as `export type <Name>Input` / `export type <Name>Output` and used in signatures.
+- **JS typing**: JS output uses JSDoc types plus `.d.ts` files; TS users still get strong types.
 
 **Entry point**
 - `node generate-sdk.js ...`
