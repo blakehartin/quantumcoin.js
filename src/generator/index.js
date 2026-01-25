@@ -56,8 +56,10 @@ function _solTypeToTestValueExpr(type) {
   if (type === "bool") return "true";
   if (type === "string") return JSON.stringify("hello");
   if (type === "bytes") return JSON.stringify("0x");
-  if (type === "bytes32") return "encodeBytes32String(\"init\")";
-  if (type.startsWith("uint") || type.startsWith("int")) return "123n";
+  // NOTE: quantum-coin-js-sdk's ABI packer panics on JS BigInt inputs.
+  // Use plain numbers/strings for ints/uints and explicit hex for bytes32.
+  if (type === "bytes32") return JSON.stringify(`0x${"11".repeat(32)}`);
+  if (type.startsWith("uint") || type.startsWith("int")) return "123";
   // Fallback
   return "undefined";
 }
@@ -243,6 +245,65 @@ function generateTransactionalTestJs(opts) {
 
   const ctorArgsExpr = ctorInputs.map((i) => _solTypeToTestValueExpr(i.type)).join(", ");
 
+  // ---------------------------------------------------------------------------
+  // ERC-20 style assertions (optional)
+  // ---------------------------------------------------------------------------
+  const fnByName = (name) => (abi || []).find((f) => f && f.type === "function" && f.name === name);
+  const nameFn = fnByName("name");
+  const supplyFn = fnByName("totalSupply") || fnByName("supply");
+  const balanceOfFn = fnByName("balanceOf");
+
+  const isViewNoArgs = (f) =>
+    !!(
+      f &&
+      f.type === "function" &&
+      (f.stateMutability === "view" || f.stateMutability === "pure") &&
+      (f.inputs || []).length === 0
+    );
+  const isViewBalanceOf = (f) =>
+    !!(
+      f &&
+      f.type === "function" &&
+      (f.stateMutability === "view" || f.stateMutability === "pure") &&
+      (f.inputs || []).length === 1 &&
+      (f.inputs[0].type || "") === "address"
+    );
+  const isStringOut = (f) => !!(f && (f.outputs || []).length === 1 && (f.outputs[0].type || "") === "string");
+  const isUintOut = (f) => !!(f && (f.outputs || []).length === 1 && String(f.outputs[0].type || "").startsWith("uint"));
+
+  const hasErc20Surface =
+    isViewNoArgs(nameFn) && isStringOut(nameFn) && isViewNoArgs(supplyFn) && isUintOut(supplyFn) && isViewBalanceOf(balanceOfFn) && isUintOut(balanceOfFn);
+
+  // Common ERC-20 constructor: (string name, string symbol, uint256 initialSupply)
+  const isErc20Ctor =
+    ctorInputs.length === 3 &&
+    (ctorInputs[0].type || "") === "string" &&
+    (ctorInputs[1].type || "") === "string" &&
+    String(ctorInputs[2].type || "").startsWith("uint");
+
+  const erc20TokenName = "TestToken";
+  const erc20TokenSymbol = "TT";
+  const erc20InitialSupply = 1000;
+  const deployArgsExpr = hasErc20Surface && isErc20Ctor ? `${JSON.stringify(erc20TokenName)}, ${JSON.stringify(erc20TokenSymbol)}, ${erc20InitialSupply}` : ctorArgsExpr;
+  const supplyMethodName = supplyFn && typeof supplyFn.name === "string" ? supplyFn.name : "totalSupply";
+  const erc20Assertions =
+    hasErc20Surface && isErc20Ctor
+      ? `// ERC-20 assertions (name / supply / balanceOf)
+    const nm = await contract.name();
+    assert.equal(nm, ${JSON.stringify(erc20TokenName)});
+
+    const supplyRaw = await contract.${supplyMethodName}();
+    const supplyVal = Array.isArray(supplyRaw) ? supplyRaw[0] : supplyRaw;
+    const supplyBI = typeof supplyVal === "bigint" ? supplyVal : BigInt(supplyVal);
+    assert.equal(supplyBI, ${erc20InitialSupply}n);
+
+    const balRaw = await contract.balanceOf(wallet.address);
+    const balVal = Array.isArray(balRaw) ? balRaw[0] : balRaw;
+    const balBI = typeof balVal === "bigint" ? balVal : BigInt(balVal);
+    assert.equal(balBI, ${erc20InitialSupply}n);
+`
+      : "";
+
   // Pick first view function with no inputs for state reads (optional).
   const viewNoArg = (abi || []).find(
     (f) => f && f.type === "function" && (f.stateMutability === "view" || f.stateMutability === "pure") && (f.inputs || []).length === 0,
@@ -263,7 +324,7 @@ function generateTransactionalTestJs(opts) {
   const writeName = writeFn ? writeFn.name : null;
   const writeArgsExpr =
     writeFn && (writeFn.inputs || []).length === 1 && (writeFn.inputs[0].type || "").startsWith("uint")
-      ? "456n"
+      ? "456"
       : writeFn
         ? (writeFn.inputs || []).map((i) => _solTypeToTestValueExpr(i.type)).join(", ")
         : "";
@@ -295,9 +356,10 @@ const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
 
 const { Initialize } = require("quantumcoin/config");
-const { JsonRpcProvider, Wallet, encodeBytes32String } = require("quantumcoin");
+const { JsonRpcProvider, Wallet } = require("quantumcoin");
 
-const { ${contractName}, ${factoryName} } = require("../dist");
+// NOTE: this test file lives at test/e2e/*.js, so dist is two levels up.
+const { ${contractName}, ${factoryName} } = require("../../dist");
 
 // Hardcoded test wallet (test-only; never use for real funds)
 const TEST_WALLET_ENCRYPTED_JSON =
@@ -306,17 +368,9 @@ const TEST_WALLET_ENCRYPTED_JSON =
   )};
 const TEST_WALLET_PASSPHRASE = "QuantumCoinExample123!";
 
-function getRpcUrl() {
-  const env = process.env.QC_RPC_URL;
-  if (env) return env;
-  const arg = process.argv.find((a) => a.startsWith("--rpc=") || a.startsWith("--rpcUrl=") || a.startsWith("--rpc-url="));
-  if (!arg) return null;
-  return arg.split("=", 2)[1];
-}
-
 describe("${contractName} transactional", () => {
   it("deploys and invokes contract", async (t) => {
-    const rpcUrl = getRpcUrl();
+    const rpcUrl = process.env.QC_RPC_URL;
     if (!rpcUrl) {
       t.skip("QC_RPC_URL not provided");
       return;
@@ -329,14 +383,18 @@ describe("${contractName} transactional", () => {
     const wallet = Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE, provider);
 
     const factory = new ${factoryName}(wallet);
-    const contract = await factory.deploy(${ctorArgsExpr}${ctorArgsExpr ? ", " : ""}{ gasLimit: 600000 });
+    const contract = await factory.deploy(${deployArgsExpr}${deployArgsExpr ? ", " : ""}{ gasLimit: 600000 });
 
     const deployTx = contract.deployTransaction();
     assert.ok(deployTx && deployTx.hash);
-    await deployTx.wait(1, 600_000);
+    const deployReceipt = await deployTx.wait(1, 600_000);
+    assert.ok(deployReceipt);
+    assert.ok(deployReceipt.blockNumber != null);
 
     const code = await provider.getCode(contract.target, "latest");
     assert.ok(code && code !== "0x");
+
+    ${erc20Assertions ? erc20Assertions : `// (no ERC-20 surface detected for extra assertions)`}
 
     ${viewNoArg ? `// Basic view call
     const before = await contract.${viewNoArg.name}();

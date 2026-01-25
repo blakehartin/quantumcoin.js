@@ -1,6 +1,7 @@
 node_modules/**
 output/**
 examples/node_modules/**
+examples/example-generated-sdk/**
 **/*.save
 **/*.swp
 **/*.tgz

@@ -84,8 +84,7 @@ PACKAGE OUTPUT (optional)
   - The generator will run:
       npm install
       npm run build:ts
-      npm run build-powershell (Windows) or npm run build (non-Windows)
-    as the final step, so index.d.ts is produced immediately.
+    as the final step.
 
 GENERAL OPTIONS
   --out <folder>                 Output folder (default: ./generated-contract)
@@ -281,8 +280,10 @@ function _solTypeToExampleValueExpr(type) {
   if (type === "bool") return "true";
   if (type === "string") return JSON.stringify("hello");
   if (type === "bytes") return JSON.stringify("0x");
-  if (type === "bytes32") return `encodeBytes32String("init")`;
-  if (type.startsWith("uint") || type.startsWith("int")) return "123n";
+  // NOTE: quantum-coin-js-sdk's ABI packer panics on JS BigInt inputs.
+  // Use plain numbers/strings for ints/uints and explicit hex for bytes32.
+  if (type === "bytes32") return JSON.stringify(`0x${"11".repeat(32)}`);
+  if (type.startsWith("uint") || type.startsWith("int")) return "123";
   return "undefined";
 }
 
@@ -822,22 +823,22 @@ async function main() {
 
       _writeText(
         path.join(outDir, "examples", "deploy.ts"),
-        `import { Initialize } from "quantumcoin/config";\nimport { JsonRpcProvider, Wallet, encodeBytes32String } from "quantumcoin";\nimport { ${a.contractName}__factory } from "../src";\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL || "http://127.0.0.1:8545";\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  await Initialize(null);\n\n  const provider = new JsonRpcProvider(rpcUrl, chainId);\n  const wallet = Wallet.createRandom().connect(provider);\n\n  const factory = new ${a.contractName}__factory(wallet);\n  const contract = await factory.deploy(${ctorArgsExpr}${ctorArgsExpr ? ", " : ""}{ gasLimit: 600000 });\n  const tx = contract.deployTransaction();\n  if (tx) await tx.wait();\n\n  console.log("Deployed at:", contract.target);\n}\n\nmain().catch((e) => {\n  console.error(e);\n  process.exitCode = 1;\n});\n`,
+        `import { Initialize } from "quantumcoin/config";\nimport { JsonRpcProvider, Wallet, encodeBytes32String } from "quantumcoin";\nimport { ${a.contractName}__factory } from "../src";\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL;\n  if (!rpcUrl) throw new Error("QC_RPC_URL is required");\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  await Initialize(null);\n\n  const provider = new JsonRpcProvider(rpcUrl, chainId);\n  const wallet = Wallet.createRandom().connect(provider);\n\n  const factory = new ${a.contractName}__factory(wallet);\n  const contract = await factory.deploy(${ctorArgsExpr}${ctorArgsExpr ? ", " : ""}{ gasLimit: 600000 });\n  const tx = contract.deployTransaction();\n  if (tx) await tx.wait();\n\n  console.log("Deployed at:", contract.target);\n}\n\nmain().catch((e) => {\n  console.error(e);\n  process.exitCode = 1;\n});\n`,
       );
 
       _writeText(
         path.join(outDir, "examples", "read-operations.ts"),
-        `import { Initialize } from "quantumcoin/config";\nimport { JsonRpcProvider } from "quantumcoin";\nimport { ${a.contractName} } from "../src";\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL || "http://127.0.0.1:8545";\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  const address = process.env.CONTRACT_ADDRESS || "0x...";\n  await Initialize(null);\n\n  const provider = new JsonRpcProvider(rpcUrl, chainId);\n  const contract = ${a.contractName}.connect(address, provider);\n\n  console.log("Contract:", contract.target);\n}\n\nmain().catch((e) => {\n  console.error(e);\n  process.exitCode = 1;\n});\n`,
+        `import { Initialize } from "quantumcoin/config";\nimport { JsonRpcProvider } from "quantumcoin";\nimport { ${a.contractName} } from "../src";\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL;\n  if (!rpcUrl) throw new Error("QC_RPC_URL is required");\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  const address = process.env.CONTRACT_ADDRESS || "0x...";\n  await Initialize(null);\n\n  const provider = new JsonRpcProvider(rpcUrl, chainId);\n  const contract = ${a.contractName}.connect(address, provider);\n\n  console.log("Contract:", contract.target);\n}\n\nmain().catch((e) => {\n  console.error(e);\n  process.exitCode = 1;\n});\n`,
       );
 
       _writeText(
         path.join(outDir, "examples", "write-operations.ts"),
-        `import { Initialize } from "quantumcoin/config";\nimport { JsonRpcProvider, Wallet } from "quantumcoin";\nimport { ${a.contractName} } from "../src";\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL || "http://127.0.0.1:8545";\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  const address = process.env.CONTRACT_ADDRESS || "0x...";\n  await Initialize(null);\n\n  const provider = new JsonRpcProvider(rpcUrl, chainId);\n  const wallet = Wallet.createRandom().connect(provider);\n  const contract = ${a.contractName}.connect(address, wallet);\n\n  // const tx = await contract.someWriteMethod(/* args */);\n  // await tx.wait();\n  console.log("Done");\n}\n\nmain().catch((e) => {\n  console.error(e);\n  process.exitCode = 1;\n});\n`,
+        `import { Initialize } from "quantumcoin/config";\nimport { JsonRpcProvider, Wallet } from "quantumcoin";\nimport { ${a.contractName} } from "../src";\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL;\n  if (!rpcUrl) throw new Error("QC_RPC_URL is required");\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  const address = process.env.CONTRACT_ADDRESS || "0x...";\n  await Initialize(null);\n\n  const provider = new JsonRpcProvider(rpcUrl, chainId);\n  const wallet = Wallet.createRandom().connect(provider);\n  const contract = ${a.contractName}.connect(address, wallet);\n\n  // const tx = await contract.someWriteMethod(/* args */);\n  // await tx.wait();\n  console.log("Done");\n}\n\nmain().catch((e) => {\n  console.error(e);\n  process.exitCode = 1;\n});\n`,
       );
 
       _writeText(
         path.join(outDir, "examples", "events.ts"),
-        `import { Initialize } from "quantumcoin/config";\nimport { JsonRpcProvider } from "quantumcoin";\nimport { ${a.contractName} } from "../src";\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL || "http://127.0.0.1:8545";\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  const address = process.env.CONTRACT_ADDRESS || "0x...";\n  await Initialize(null);\n\n  const provider = new JsonRpcProvider(rpcUrl, chainId);\n  const contract = ${a.contractName}.connect(address, provider);\n\n  console.log("Contract:", contract.target);\n}\n\nmain().catch((e) => {\n  console.error(e);\n  process.exitCode = 1;\n});\n`,
+        `import { Initialize } from "quantumcoin/config";\nimport { JsonRpcProvider } from "quantumcoin";\nimport { ${a.contractName} } from "../src";\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL;\n  if (!rpcUrl) throw new Error("QC_RPC_URL is required");\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  const address = process.env.CONTRACT_ADDRESS || "0x...";\n  await Initialize(null);\n\n  const provider = new JsonRpcProvider(rpcUrl, chainId);\n  const contract = ${a.contractName}.connect(address, provider);\n\n  console.log("Contract:", contract.target);\n}\n\nmain().catch((e) => {\n  console.error(e);\n  process.exitCode = 1;\n});\n`,
       );
     } else {
       // Multi-contract: avoid filename collisions.
@@ -847,22 +848,22 @@ async function main() {
 
         _writeText(
           path.join(outDir, "examples", `deploy-${a.contractName}.ts`),
-          `import { Initialize } from "quantumcoin/config";\nimport { JsonRpcProvider, Wallet, encodeBytes32String } from "quantumcoin";\nimport { ${a.contractName}__factory } from "../src";\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL || "http://127.0.0.1:8545";\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  await Initialize(null);\n\n  const provider = new JsonRpcProvider(rpcUrl, chainId);\n  const wallet = Wallet.createRandom().connect(provider);\n\n  const factory = new ${a.contractName}__factory(wallet);\n  const contract = await factory.deploy(${ctorArgsExpr}${ctorArgsExpr ? ", " : ""}{ gasLimit: 600000 });\n  const tx = contract.deployTransaction();\n  if (tx) await tx.wait();\n\n  console.log("Deployed ${a.contractName} at:", contract.target);\n}\n\nmain().catch((e) => {\n  console.error(e);\n  process.exitCode = 1;\n});\n`,
+          `import { Initialize } from "quantumcoin/config";\nimport { JsonRpcProvider, Wallet, encodeBytes32String } from "quantumcoin";\nimport { ${a.contractName}__factory } from "../src";\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL;\n  if (!rpcUrl) throw new Error("QC_RPC_URL is required");\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  await Initialize(null);\n\n  const provider = new JsonRpcProvider(rpcUrl, chainId);\n  const wallet = Wallet.createRandom().connect(provider);\n\n  const factory = new ${a.contractName}__factory(wallet);\n  const contract = await factory.deploy(${ctorArgsExpr}${ctorArgsExpr ? ", " : ""}{ gasLimit: 600000 });\n  const tx = contract.deployTransaction();\n  if (tx) await tx.wait();\n\n  console.log("Deployed ${a.contractName} at:", contract.target);\n}\n\nmain().catch((e) => {\n  console.error(e);\n  process.exitCode = 1;\n});\n`,
         );
 
         _writeText(
           path.join(outDir, "examples", `read-operations-${a.contractName}.ts`),
-          `import { Initialize } from "quantumcoin/config";\nimport { JsonRpcProvider } from "quantumcoin";\nimport { ${a.contractName} } from "../src";\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL || "http://127.0.0.1:8545";\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  const address = process.env.CONTRACT_ADDRESS || "0x...";\n  await Initialize(null);\n\n  const provider = new JsonRpcProvider(rpcUrl, chainId);\n  const contract = ${a.contractName}.connect(address, provider);\n\n  console.log("${a.contractName}:", contract.target);\n}\n\nmain().catch((e) => {\n  console.error(e);\n  process.exitCode = 1;\n});\n`,
+          `import { Initialize } from "quantumcoin/config";\nimport { JsonRpcProvider } from "quantumcoin";\nimport { ${a.contractName} } from "../src";\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL;\n  if (!rpcUrl) throw new Error("QC_RPC_URL is required");\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  const address = process.env.CONTRACT_ADDRESS || "0x...";\n  await Initialize(null);\n\n  const provider = new JsonRpcProvider(rpcUrl, chainId);\n  const contract = ${a.contractName}.connect(address, provider);\n\n  console.log("${a.contractName}:", contract.target);\n}\n\nmain().catch((e) => {\n  console.error(e);\n  process.exitCode = 1;\n});\n`,
         );
 
         _writeText(
           path.join(outDir, "examples", `write-operations-${a.contractName}.ts`),
-          `import { Initialize } from "quantumcoin/config";\nimport { JsonRpcProvider, Wallet } from "quantumcoin";\nimport { ${a.contractName} } from "../src";\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL || "http://127.0.0.1:8545";\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  const address = process.env.CONTRACT_ADDRESS || "0x...";\n  await Initialize(null);\n\n  const provider = new JsonRpcProvider(rpcUrl, chainId);\n  const wallet = Wallet.createRandom().connect(provider);\n  const contract = ${a.contractName}.connect(address, wallet);\n\n  // const tx = await contract.someWriteMethod(/* args */);\n  // await tx.wait();\n  console.log("Done");\n}\n\nmain().catch((e) => {\n  console.error(e);\n  process.exitCode = 1;\n});\n`,
+          `import { Initialize } from "quantumcoin/config";\nimport { JsonRpcProvider, Wallet } from "quantumcoin";\nimport { ${a.contractName} } from "../src";\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL;\n  if (!rpcUrl) throw new Error("QC_RPC_URL is required");\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  const address = process.env.CONTRACT_ADDRESS || "0x...";\n  await Initialize(null);\n\n  const provider = new JsonRpcProvider(rpcUrl, chainId);\n  const wallet = Wallet.createRandom().connect(provider);\n  const contract = ${a.contractName}.connect(address, wallet);\n\n  // const tx = await contract.someWriteMethod(/* args */);\n  // await tx.wait();\n  console.log("Done");\n}\n\nmain().catch((e) => {\n  console.error(e);\n  process.exitCode = 1;\n});\n`,
         );
 
         _writeText(
           path.join(outDir, "examples", `events-${a.contractName}.ts`),
-          `import { Initialize } from "quantumcoin/config";\nimport { JsonRpcProvider } from "quantumcoin";\nimport { ${a.contractName} } from "../src";\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL || "http://127.0.0.1:8545";\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  const address = process.env.CONTRACT_ADDRESS || "0x...";\n  await Initialize(null);\n\n  const provider = new JsonRpcProvider(rpcUrl, chainId);\n  const contract = ${a.contractName}.connect(address, provider);\n\n  console.log("${a.contractName}:", contract.target);\n}\n\nmain().catch((e) => {\n  console.error(e);\n  process.exitCode = 1;\n});\n`,
+          `import { Initialize } from "quantumcoin/config";\nimport { JsonRpcProvider } from "quantumcoin";\nimport { ${a.contractName} } from "../src";\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL;\n  if (!rpcUrl) throw new Error("QC_RPC_URL is required");\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  const address = process.env.CONTRACT_ADDRESS || "0x...";\n  await Initialize(null);\n\n  const provider = new JsonRpcProvider(rpcUrl, chainId);\n  const contract = ${a.contractName}.connect(address, provider);\n\n  console.log("${a.contractName}:", contract.target);\n}\n\nmain().catch((e) => {\n  console.error(e);\n  process.exitCode = 1;\n});\n`,
         );
       }
     }
@@ -875,11 +876,6 @@ async function main() {
   if (createPackage) {
     _runNpm(["install", "--no-fund", "--no-audit"], outDir);
     _runNpm(["run", "build:ts"], outDir);
-    if (process.platform === "win32") {
-      _runNpm(["run", "build-powershell"], outDir);
-    } else {
-      _runNpm(["run", "build"], outDir);
-    }
   }
 
   console.log(`Generated contract files in: ${targetSrcDir}`);
@@ -1059,8 +1055,8 @@ function _createPackageScaffold({ outDir, pkgName, pkgDesc, pkgAuthor, pkgLicens
     types: "dist/index.d.ts",
     scripts: {
       "build:ts": "npx -p typescript tsc -p tsconfig.json",
-      "build": "npx -p typescript tsc index.js --declaration --allowJs --emitDeclarationOnly",
-      "build-powershell": "powershell npx -p typescript tsc index.js --declaration --allowJs --emitDeclarationOnly",
+      "build": "npm run build:ts",
+      "build-powershell": "npm run build:ts",
       test: "npm run build:ts && node --test --test-concurrency=1 \"test/**/*.test.js\"",
       "test:e2e": "npm run build:ts && node --test --test-concurrency=1 \"test/e2e/**/*.test.js\"",
     },
@@ -1085,6 +1081,10 @@ function _createPackageScaffold({ outDir, pkgName, pkgDesc, pkgAuthor, pkgLicens
   _writeText(path.join(outDir, "README.md"), _packageReadme({ pkgName, pkgDesc, artifacts: [], createdFromSolidity: false }));
 
   _writeText(path.join(outDir, ".gitignore"), `node_modules\n/dist\n*.log\n`);
+
+  // Provide a root index.d.ts without needing a separate build step.
+  // This is mainly for convenience and for tooling that expects a top-level .d.ts.
+  _writeText(path.join(outDir, "index.d.ts"), `export * from "./dist";\n`);
 
   // Minimal shims so the generated TypeScript can compile even though `quantumcoin`
   // is a JavaScript package (no bundled .d.ts in this repo).
