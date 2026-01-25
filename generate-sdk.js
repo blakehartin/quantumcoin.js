@@ -43,6 +43,7 @@ INPUT MODES
      --sol "<A.sol,B.sol,...>"    (comma-separated list; can be 1+ files)
      --name <ContractName>        (optional; if omitted, generates ALL deployable contracts found)
      --solc <path/to/solc.exe>    (optional; defaults from env; see ENV below)
+     --solc-args "<args>"         (optional; extra args passed to solc, e.g. "--via-ir --evm-version london")
 
   3) Artifacts JSON (array of ABI+BIN pairs)
      --artifacts-json <path/to/artifacts.json>
@@ -293,6 +294,69 @@ function _parseCommaSeparatedFiles(v) {
     .filter(Boolean);
 }
 
+function _parseSolcExtraArgs(raw) {
+  if (!raw) return [];
+  const t = String(raw).trim();
+  if (!t) return [];
+
+  // Allow a JSON array string: ["--via-ir","--evm-version","london"]
+  if (t.startsWith("[")) {
+    const arr = JSON.parse(t);
+    if (!Array.isArray(arr) || !arr.every((x) => typeof x === "string")) {
+      throw new Error(`--solc-args JSON must be a string[] (got: ${t.slice(0, 80)}${t.length > 80 ? "..." : ""})`);
+    }
+    return arr.filter((s) => s.trim()).map((s) => s.trim());
+  }
+
+  // Otherwise treat as a single string of space-separated args (basic quoting support).
+  /** @type {string[]} */
+  const out = [];
+  let cur = "";
+  let inQuote = null; // "'" | "\""
+  let escaping = false;
+
+  for (let i = 0; i < t.length; i++) {
+    const ch = t[i];
+
+    if (escaping) {
+      cur += ch;
+      escaping = false;
+      continue;
+    }
+
+    if (ch === "\\") {
+      // allow escaping inside quotes (and harmless outside)
+      escaping = true;
+      continue;
+    }
+
+    if (inQuote) {
+      if (ch === inQuote) {
+        inQuote = null;
+      } else {
+        cur += ch;
+      }
+      continue;
+    }
+
+    if (ch === '"' || ch === "'") {
+      inQuote = ch;
+      continue;
+    }
+
+    if (/\s/.test(ch)) {
+      if (cur) out.push(cur);
+      cur = "";
+      continue;
+    }
+
+    cur += ch;
+  }
+
+  if (cur) out.push(cur);
+  return out;
+}
+
 function _resolveSolcPath(argv) {
   const solcArg = _argValue(argv, "--solc") || _argValue(argv, "--solc-path") || _argValue(argv, "--solcPath");
   const env =
@@ -313,9 +377,11 @@ function _assertSolcExists(solcPath) {
   }
 }
 
-function _compileSolidityToArtifacts({ solcPath, solFilesAbs, contractNameFilter }) {
+function _compileSolidityToArtifacts({ solcPath, solFilesAbs, contractNameFilter, solcExtraArgs }) {
   _assertSolcExists(solcPath);
-  const out = execFileSync(solcPath, ["--optimize", "--combined-json", "abi,bin", ...solFilesAbs], { encoding: "utf8" });
+  const extra = Array.isArray(solcExtraArgs) ? solcExtraArgs : [];
+  const base = extra.includes("--optimize") ? [] : ["--optimize"];
+  const out = execFileSync(solcPath, [...base, ...extra, "--combined-json", "abi,bin", ...solFilesAbs], { encoding: "utf8" });
   const parsed = JSON.parse(out);
 
   const artifacts = [];
@@ -530,6 +596,7 @@ async function main() {
   const abiPathArg = _argValue(argv, "--abi");
   const binPathArg = _argValue(argv, "--bin");
   const solArg = _argValue(argv, "--sol") || _argValue(argv, "--sol-files") || _argValue(argv, "--solFiles");
+  const solcArgsRaw = _argValue(argv, "--solc-args") || _argValue(argv, "--solcArgs");
   const artifactsJsonArg =
     _argValue(argv, "--artifacts-json") || _argValue(argv, "--artifactsJson") || _argValue(argv, "--artifacts");
   const outArg = _argValue(argv, "--out");
@@ -561,6 +628,7 @@ async function main() {
   let absBin = null;
   let solFilesAbs = [];
   let artifactsJsonAbs = null;
+  const solcExtraArgs = solcArgsRaw ? _parseSolcExtraArgs(solcArgsRaw) : [];
 
   if (!nonInteractive) {
     const rl0 = readline.createInterface({ input: stdin, output: stdout });
@@ -701,7 +769,7 @@ async function main() {
     artifacts = [{ contractName, abi, bytecode, docs: null }];
   } else if (inputType === "sol") {
     const solcPath = _resolveSolcPath(argv);
-    artifacts = _compileSolidityToArtifacts({ solcPath, solFilesAbs, contractNameFilter: contractName });
+    artifacts = _compileSolidityToArtifacts({ solcPath, solFilesAbs, contractNameFilter: contractName, solcExtraArgs });
 
     // Attach Solidity doc comments (NatSpec) to artifacts
     const docsByContract = _extractSolDocs(solFilesAbs);
@@ -730,7 +798,8 @@ async function main() {
       _packageReadme({
         pkgName: pkgNameArg || path.basename(outDir),
         pkgDesc: pkgDescArg,
-        contractNames: artifacts.map((a) => a.contractName),
+        artifacts,
+        createdFromSolidity: inputType === "sol",
       }),
     );
 
@@ -820,9 +889,152 @@ function _cap(s) {
   return s ? s[0].toUpperCase() + s.slice(1) : s;
 }
 
-function _packageReadme({ pkgName, pkgDesc, contractNames }) {
-  const list = (contractNames || []).map((n) => `- \`${n}\``).join("\n");
-  return `# ${pkgName}\n\n${pkgDesc}\n\n## Contracts\n\n${list || "- (none)"}\n\n## Running\n\n- \`npm install\`\n- \`npm test\`\n\nTransactional tests require:\n- \`QC_RPC_URL\`\n- \`QC_CHAIN_ID\` (optional)\n`;
+function _abiParamSig(p, { includeName = true } = {}) {
+  if (!p || typeof p !== "object") return "";
+  const t = typeof p.type === "string" ? p.type : "";
+  const n = includeName && typeof p.name === "string" && p.name ? ` ${p.name}` : "";
+  const indexed = p.indexed ? " indexed" : "";
+  return `${t}${indexed}${n}`.trim();
+}
+
+function _abiFnSig(f) {
+  const inputs = (f.inputs || []).map((p) => _abiParamSig(p)).filter(Boolean).join(", ");
+  const outputs = (f.outputs || []).map((p) => _abiParamSig(p, { includeName: false })).filter(Boolean).join(", ");
+  const mut = f.stateMutability && f.stateMutability !== "nonpayable" ? ` ${f.stateMutability}` : "";
+  const returns = outputs ? ` returns (${outputs})` : "";
+  return `${f.name}(${inputs})${mut}${returns}`.trim();
+}
+
+function _abiEventSig(e) {
+  const inputs = (e.inputs || []).map((p) => _abiParamSig(p)).filter(Boolean).join(", ");
+  return `${e.name}(${inputs})`.trim();
+}
+
+function _abiErrorSig(er) {
+  const inputs = (er.inputs || []).map((p) => _abiParamSig(p)).filter(Boolean).join(", ");
+  return `${er.name}(${inputs})`.trim();
+}
+
+function _firstLine(s) {
+  if (!s) return "";
+  const t = String(s).trim();
+  if (!t) return "";
+  return t.split(/\r?\n/g)[0].trim();
+}
+
+function _packageReadme({ pkgName, pkgDesc, artifacts, createdFromSolidity }) {
+  const list = (artifacts || []).map((a) => a.contractName).filter(Boolean);
+  const hasMultiple = list.length > 1;
+
+  const contractLinks = list.length
+    ? list.map((n) => `- [\`${n}\`](#${n.toLowerCase()})`).join("\n")
+    : "- (none)";
+
+  const envBlock = `- \`QC_RPC_URL\` (required for transactional tests)\n- \`QC_CHAIN_ID\` (optional; defaults are used if omitted)\n`;
+
+  const commonExamples = hasMultiple
+    ? `Examples are generated per contract (e.g. \`examples/deploy-<Contract>.ts\`).`
+    : `- [deploy](./examples/deploy.ts)\n- [read operations](./examples/read-operations.ts)\n- [write operations](./examples/write-operations.ts)\n- [events](./examples/events.ts)\n`;
+
+  const contractsMd = (artifacts || [])
+    .map((a) => {
+      const name = a.contractName;
+      const desc = a.docs && typeof a.docs.contract === "string" && a.docs.contract.trim() ? a.docs.contract.trim() : "";
+
+      const fnDocs = (a.docs && a.docs.functions) || {};
+      const abi = Array.isArray(a.abi) ? a.abi : [];
+      const functions = abi.filter((x) => x && x.type === "function").sort((x, y) => String(x.name).localeCompare(String(y.name)));
+      const events = abi.filter((x) => x && x.type === "event").sort((x, y) => String(x.name).localeCompare(String(y.name)));
+      const errors = abi.filter((x) => x && x.type === "error").sort((x, y) => String(x.name).localeCompare(String(y.name)));
+      const ctor = abi.find((x) => x && x.type === "constructor");
+
+      const examples = hasMultiple
+        ? `- [deploy](./examples/deploy-${name}.ts)\n- [read operations](./examples/read-operations-${name}.ts)\n- [write operations](./examples/write-operations-${name}.ts)\n- [events](./examples/events-${name}.ts)\n`
+        : `- [deploy](./examples/deploy.ts)\n- [read operations](./examples/read-operations.ts)\n- [write operations](./examples/write-operations.ts)\n- [events](./examples/events.ts)\n`;
+
+      const testLink = `- [transactional test](./test/e2e/${name}.e2e.test.js)\n`;
+
+      const fileLinks = [
+        `- [\`src/${name}.ts\`](./src/${name}.ts)`,
+        `- [\`src/${name}__factory.ts\`](./src/${name}__factory.ts)`,
+        createdFromSolidity ? `- [\`artifacts/${name}.abi.json\`](./artifacts/${name}.abi.json)` : null,
+        createdFromSolidity ? `- [\`artifacts/${name}.bin\`](./artifacts/${name}.bin)` : null,
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const ctorSig = ctor
+        ? `\`constructor(${(ctor.inputs || []).map((p) => _abiParamSig(p)).filter(Boolean).join(", ")})\``
+        : "`constructor()`";
+
+      const fnList = functions.length
+        ? functions
+            .map((f) => {
+              const doc = fnDocs && typeof fnDocs[f.name] === "string" ? _firstLine(fnDocs[f.name]) : "";
+              return `- \`${_abiFnSig(f)}\`${doc ? ` — ${doc}` : ""}`;
+            })
+            .join("\n")
+        : "- (none)";
+
+      const eventList = events.length ? events.map((e) => `- \`${_abiEventSig(e)}\``).join("\n") : "- (none)";
+      const errorList = errors.length ? errors.map((er) => `- \`${_abiErrorSig(er)}\``).join("\n") : "- (none)";
+
+      return [
+        `## ${name}`,
+        desc ? `\n${desc}\n` : "",
+        `- **Exports**: \`${name}\`, \`${name}__factory\``,
+        `- **Constructor**: ${ctorSig}`,
+        "",
+        "### Files",
+        fileLinks,
+        "",
+        "### Examples",
+        examples.trimEnd(),
+        "",
+        "### Tests",
+        testLink.trimEnd(),
+        "",
+        "### Functions",
+        fnList,
+        "",
+        "### Events",
+        eventList,
+        "",
+        "### Errors",
+        errorList,
+        "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+    })
+    .join("\n");
+
+  return (
+    `# ${pkgName}\n\n` +
+    `${pkgDesc || ""}\n\n` +
+    "## What’s in this package\n\n" +
+    "- Typed contract wrappers and factories in `src/` (compiled output in `dist/`)\n" +
+    "- Transactional tests in `test/e2e/`\n" +
+    `- Example scripts in \`examples/\`\n` +
+    (createdFromSolidity ? "- ABI/BIN artifacts in `artifacts/`\n" : "") +
+    "\n" +
+    "## Install\n\n" +
+    "- `npm install`\n\n" +
+    "## Build\n\n" +
+    "- `npm run build:ts`\n\n" +
+    "## Run tests\n\n" +
+    "- `npm test`\n\n" +
+    "Transactional tests require:\n" +
+    envBlock +
+    "\n" +
+    "## Examples\n\n" +
+    (hasMultiple ? `${commonExamples}\n\n` : `${commonExamples}\n`) +
+    "## Contracts\n\n" +
+    contractLinks +
+    "\n\n" +
+    (contractsMd ? contractsMd : "") +
+    "\n"
+  );
 }
 
 function _createPackageScaffold({ outDir, pkgName, pkgDesc, pkgAuthor, pkgLicense, pkgVersion }) {
@@ -870,7 +1082,7 @@ function _createPackageScaffold({ outDir, pkgName, pkgDesc, pkgAuthor, pkgLicens
     include: ["src/**/*.ts"],
   });
 
-  _writeText(path.join(outDir, "README.md"), _packageReadme({ pkgName, pkgDesc, contractNames: [] }));
+  _writeText(path.join(outDir, "README.md"), _packageReadme({ pkgName, pkgDesc, artifacts: [], createdFromSolidity: false }));
 
   _writeText(path.join(outDir, ".gitignore"), `node_modules\n/dist\n*.log\n`);
 
