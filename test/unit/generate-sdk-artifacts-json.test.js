@@ -101,6 +101,10 @@ describe("generate-sdk.js --artifacts-json", () => {
     assert.ok(fs.existsSync(path.join(outDir, "Alpha.d.ts")));
     assert.ok(fs.existsSync(path.join(outDir, "Alpha__factory.js")));
     assert.ok(fs.existsSync(path.join(outDir, "Alpha__factory.d.ts")));
+
+    // Ensure generated types re-export core Solidity types (no local re-definition).
+    const typesDts = fs.readFileSync(path.join(outDir, "types.d.ts"), "utf8");
+    assert.ok(typesDts.includes('from "quantumcoin/types"'), "expected generated types.d.ts to reference quantumcoin/types");
   });
 });
 

@@ -1,11 +1,13 @@
-export type BytesLike = import("../utils/encoding").BytesLike;
+export type BytesLike = import("../types").BytesLike;
+export type AddressLike = import("../types").AddressLike;
+export type BigNumberish = import("../types").BigNumberish;
 export type TransactionRequest = {
-    to?: string | undefined;
-    from?: string | undefined;
-    value?: (bigint | string | number) | undefined;
-    data?: string | undefined;
-    gasLimit?: (bigint | string | number) | undefined;
-    gasPrice?: (bigint | string | number) | undefined;
+    to?: AddressLike | undefined;
+    from?: AddressLike | undefined;
+    value?: BigNumberish | undefined;
+    data?: BytesLike | undefined;
+    gasLimit?: BigNumberish | undefined;
+    gasPrice?: BigNumberish | undefined;
     nonce?: number | undefined;
     chainId?: number | undefined;
     /**
@@ -56,13 +58,13 @@ export class AbstractProvider extends Provider {
      * @param {string} address
      * @returns {Promise<bigint>}
      */
-    getBalance(address: string): Promise<bigint>;
+    getBalance(address: AddressLike): Promise<bigint>;
     /**
      * @param {string} address
      * @param {string=} blockTag
      * @returns {Promise<number>}
      */
-    getTransactionCount(address: string, blockTag?: string | undefined): Promise<number>;
+    getTransactionCount(address: AddressLike, blockTag?: string | undefined): Promise<number>;
     /**
      * Broadcasts a signed transaction.
      * @param {TransactionRequest|string} tx
@@ -87,14 +89,14 @@ export class AbstractProvider extends Provider {
      * @param {string=} blockTag
      * @returns {Promise<string>}
      */
-    getCode(address: string, blockTag?: string | undefined): Promise<string>;
+    getCode(address: AddressLike, blockTag?: string | undefined): Promise<string>;
     /**
      * @param {string} address
      * @param {bigint} position
      * @param {string=} blockTag
      * @returns {Promise<string>}
      */
-    getStorageAt(address: string, position: bigint, blockTag?: string | undefined): Promise<string>;
+    getStorageAt(address: AddressLike, position: bigint, blockTag?: string | undefined): Promise<string>;
     /**
      * @param {Filter} filter
      * @returns {Promise<Log[]>}

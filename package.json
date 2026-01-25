@@ -3,9 +3,30 @@
   "version": "7.0.2",
   "description": "QuantumCoin SDK - a complete SDK for dapps",
   "main": "index.js",
+  "types": "src/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "types": [
+        "src/types/index.d.ts"
+      ],
+      "config": [
+        "config.d.ts"
+      ]
+    }
+  },
   "exports": {
-    ".": "./index.js",
-    "./config": "./config.js",
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./index.js"
+    },
+    "./config": {
+      "types": "./config.d.ts",
+      "default": "./config.js"
+    },
+    "./types": {
+      "types": "./src/types/index.d.ts",
+      "default": "./src/types/index.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {

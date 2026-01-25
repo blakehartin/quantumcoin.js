@@ -95,6 +95,19 @@ If installed as a package, you can also run:
 
 `npx quantumcoin-sdk-generator --abi ... --bin ...`
 
+## Solidity types (TypeScript)
+
+QuantumCoin.js exports core Solidity-related typings from:
+
+- `quantumcoin/types`
+
+Common types:
+
+- `AddressLike` (currently `string`, 32-byte address)
+- `BytesLike` (`string | Uint8Array`)
+- `BigNumberish` (`string | number | bigint`)
+- `SolidityTypeName`, `SolidityInputValue<T>`, `SolidityOutputValue<T>`
+
 ## Examples
 
 ```bash

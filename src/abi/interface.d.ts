@@ -93,6 +93,15 @@ export class AbiCoder {
      * @returns {string}
      */
     encode(types: (string | any)[], values: any[]): string;
+  /**
+   * Typed ABI encode (Solidity ABI type strings).
+   * @param {TTypes} types
+   * @param {TValues} values
+   */
+  encode<TTypes extends readonly import("../types").SolidityTypeName[]>(
+    types: TTypes,
+    values: { [K in keyof TTypes]: import("../types").SolidityInputValue<TTypes[K]> },
+  ): string;
     /**
      * Decode ABI data by output types.
      * @param {(string|any)[]} types
@@ -100,6 +109,15 @@ export class AbiCoder {
      * @returns {any}
      */
     decode(types: (string | any)[], data: string): any;
+  /**
+   * Typed ABI decode (Solidity ABI type strings).
+   * @param {TTypes} types
+   * @param {string} data
+   */
+  decode<TTypes extends readonly import("../types").SolidityTypeName[]>(
+    types: TTypes,
+    data: string,
+  ): { [K in keyof TTypes]: import("../types").SolidityOutputValue<TTypes[K]> };
     /**
      * Return a default value for types.
      * @param {(string|any)[]} types

@@ -563,6 +563,30 @@ From `quantumcoin`:
 **Example(s):**
 - `examples/wallet-offline.js`
 
+## Solidity Types (TypeScript)
+
+QuantumCoin.js exposes core Solidity-related types for TypeScript users.
+
+- **Import path**: `quantumcoin/types`
+
+**Key exports**
+
+- `AddressLike` (currently `string`, 32-byte address)
+- `BytesLike` (`string | Uint8Array`)
+- `BigNumberish` (`string | number | bigint`)
+- `SolidityTypeName` (ABI type string model)
+- `SolidityInputValue<T>` / `SolidityOutputValue<T>` (type-level mapping from ABI type strings to JS values)
+
+Example:
+
+```ts
+import type { AddressLike, BigNumberish, SolidityInputValue } from "quantumcoin/types";
+
+const to: AddressLike = "0x0000000000000000000000000000000000000000000000000000000000001000";
+const amount: BigNumberish = "123";
+type U256In = SolidityInputValue<"uint256">; // BigNumberish
+```
+
 ### Encoding utilities
 
 - `toUtf8String(data: BytesLike): string`
