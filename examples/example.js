@@ -50,8 +50,8 @@ async function main() {
   const abi = require("../test/fixtures/StakingContract.abi.json");
   const staking = new qc.Contract(STAKING_CONTRACT, abi, provider);
   const depositorCount = await staking.getDepositorCount();
-  const count = Array.isArray(depositorCount) ? depositorCount[0] : depositorCount;
-  console.log("Depositor count:", String(count));
+  console.log("typeof depositorCount:", typeof depositorCount);
+  console.log("Depositor count:", depositorCount.toString());
 }
 
 main().catch((e) => {

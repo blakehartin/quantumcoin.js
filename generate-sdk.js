@@ -292,6 +292,7 @@ function _findConstructor(abi) {
 
 function _solTypeToExampleValueExpr(param) {
   const type = typeof param === "string" ? param : String(param && param.type ? param.type : "");
+  const internalType = typeof param === "object" && param ? String(param.internalType || "") : "";
   if (!type) return "undefined";
 
   // Arrays (dynamic or fixed)
@@ -303,8 +304,8 @@ function _solTypeToExampleValueExpr(param) {
     const elemParam = { ...(param || {}), type: inner };
     const elemExpr = _solTypeToExampleValueExpr(elemParam);
     if (isFixed && Number.isFinite(fixedLen) && fixedLen > 0) {
-      const n = Math.min(fixedLen, 2);
-      return `[${Array.from({ length: n }).map(() => elemExpr).join(", ")}]`;
+      // Fixed arrays MUST match the exact declared length.
+      return `Array(${fixedLen}).fill(${elemExpr})`;
     }
     return `[${elemExpr}]`;
   }
@@ -321,6 +322,7 @@ function _solTypeToExampleValueExpr(param) {
   }
 
   // Use plain numbers/strings for ints/uints.
+  if (type.startsWith("uint") && /\benum\b/.test(internalType)) return "1";
   if (type.startsWith("uint")) return "123";
   if (type.startsWith("int")) return "-123";
 

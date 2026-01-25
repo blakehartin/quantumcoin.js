@@ -383,6 +383,7 @@ function _findConstructor(abi) {
 
 function _solTypeToTestValueExpr(param) {
   const type = typeof param === "string" ? param : String(param && param.type ? param.type : "");
+  const internalType = typeof param === "object" && param ? String(param.internalType || "") : "";
 
   // Arrays (dynamic or fixed)
   if (type.endsWith("]")) {
@@ -394,8 +395,9 @@ function _solTypeToTestValueExpr(param) {
 
     const elemExpr = _solTypeToTestValueExpr(elemParam);
     if (isFixed && Number.isFinite(fixedLen) && fixedLen > 0) {
-      const n = Math.min(fixedLen, 2); // cap to keep tests fast
-      return `[${Array.from({ length: n }).map(() => elemExpr).join(", ")}]`;
+      // Fixed arrays MUST match the exact declared length.
+      // Use Array(len).fill(expr) to keep source size reasonable.
+      return `Array(${fixedLen}).fill(${elemExpr})`;
     }
     return `[${elemExpr}]`;
   }
@@ -414,6 +416,8 @@ function _solTypeToTestValueExpr(param) {
 
   // NOTE: quantum-coin-js-sdk WASM interop does not accept BigInt values directly.
   // Use plain numbers/strings for ints/uints.
+  // Enums are ABI-encoded as uints but Solidity will revert if the value is out of range.
+  if (type.startsWith("uint") && /\benum\b/.test(internalType)) return "1";
   if (type.startsWith("uint")) return "123";
   if (type.startsWith("int")) return "-123";
 
@@ -1048,7 +1052,21 @@ describe("${contractName} transactional", () => {
     const wallet = Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE, provider);
 
     const factory = new ${factoryName}(wallet);
-    const contract = await factory.deploy(${deployArgsExpr}${deployArgsExpr ? ", " : ""}{ gasLimit: 600000 });
+    // Build deploy transaction + estimate gas (best-effort).
+    const deployTxReq = factory.getDeployTransaction(${deployArgsExpr});
+    let deployGasLimit = 600000;
+    try {
+      const est = await provider.estimateGas({ from: wallet.address, data: deployTxReq.data });
+      deployGasLimit = Number(est + 200_000n);
+    } catch {
+      // Keep fallback. Some RPCs do not support estimateGas for create.
+      deployGasLimit = 6_000_000;
+    }
+    // Some large contracts underestimate gas; apply a sane floor based on bytecode size.
+    const bytecodeSize = (${contractName}.bytecode || "").length;
+    if (bytecodeSize > 20000 && deployGasLimit < 6_000_000) deployGasLimit = 6_000_000;
+
+    const contract = await factory.deploy(${deployArgsExpr}${deployArgsExpr ? ", " : ""}{ gasLimit: deployGasLimit });
 
     const deployTx = contract.deployTransaction();
     assert.ok(deployTx && deployTx.hash);
