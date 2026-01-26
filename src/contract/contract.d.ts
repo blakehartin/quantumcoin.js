@@ -20,6 +20,9 @@ export class Contract extends BaseContract {
     signer: any;
     runner: any;
     _listeners: any;
+    populateTransaction: {
+        [key: string]: (...args: any[]) => Promise<import("../providers/provider").TransactionRequest>;
+    };
     getAddress(): string;
     /**
      * Invoke a contract function, dispatching to call() or send().
@@ -44,6 +47,12 @@ export class Contract extends BaseContract {
      * @returns {Promise<ContractTransactionResponse>}
      */
     send(methodName: string, args: any[], overrides?: import("../providers/provider").TransactionRequest | undefined): Promise<ContractTransactionResponse>;
+    /**
+     * Build an unsigned transaction request for a contract method call.
+     * @param {string} methodName
+     * @param {any[]} args
+     */
+    _populate(methodName: string, args: any[]): Promise<import("../providers/provider").TransactionRequest>;
     /**
      * Query logs for an event.
      * @param {any} event

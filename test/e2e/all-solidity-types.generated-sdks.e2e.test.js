@@ -344,6 +344,13 @@ describe("AllSolidityTypes generated SDKs (extra tests)", () => {
       const jsRun = runNpm(["test"], jsPkg, env);
       assert.equal(jsRun.status, 0, `JS package tests failed:\n${jsRun.stdout}\n${jsRun.stderr}`);
 
+      // Run the generated offline signing example (offline deploy via sendRawTransaction).
+      const tsExample = run(process.execPath, [path.join(tsPkg, "examples", "offline-signing.js")], tsPkg, env);
+      assert.equal(tsExample.status, 0, `TS offline-signing example failed:\n${tsExample.stdout}\n${tsExample.stderr}`);
+
+      const jsExample = run(process.execPath, [path.join(jsPkg, "examples", "offline-signing.js")], jsPkg, env);
+      assert.equal(jsExample.status, 0, `JS offline-signing example failed:\n${jsExample.stdout}\n${jsExample.stderr}`);
+
       succeeded = true;
     } finally {
       // We intentionally keep the generated SDK packages under test/e2e.

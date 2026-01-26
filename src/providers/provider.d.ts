@@ -72,6 +72,13 @@ export class AbstractProvider extends Provider {
      */
     sendTransaction(tx: TransactionRequest | string): Promise<TransactionResponse>;
     /**
+     * Broadcast a signed raw transaction.
+     * Alias of sendTransaction(rawTx) for clarity in offline signing flows.
+     * @param {string} rawTx
+     * @returns {Promise<TransactionResponse>}
+     */
+    sendRawTransaction(rawTx: string): Promise<TransactionResponse>;
+    /**
      * Perform a call (read-only) and return hex data.
      * @param {TransactionRequest} tx
      * @param {string=} blockTag
