@@ -21,7 +21,7 @@ export class ContractFactory {
      * @returns {Promise<Contract>}
      */
     deploy(...args: any[]): Promise<Contract>;
-    attach(address: any): Contract;
+    attach(address: import("../types").AddressLike): Contract;
     connect(signer: any): ContractFactory;
 }
 import { Interface } from "../abi/interface";

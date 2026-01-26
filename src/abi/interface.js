@@ -8,10 +8,11 @@
 
 const qcsdk = require("quantum-coin-js-sdk");
 const { makeError, assertArgument } = require("../errors");
-const { normalizeHex } = require("../internal/hex");
+const { normalizeHex, arrayify, bytesToHex } = require("../internal/hex");
 const { EventFragment, FunctionFragment, ErrorFragment, ConstructorFragment } = require("./fragments");
 const { Result } = require("../utils/result");
 const { id } = require("../utils/hashing");
+const jsAbi = require("./js-abi-coder");
 
 function _requireInitialized() {
   // eslint-disable-next-line global-require
@@ -48,6 +49,190 @@ function _asAbiArray(abi) {
   throw makeError("invalid ABI", "INVALID_ARGUMENT", { abi });
 }
 
+function _isNumericString(v) {
+  return typeof v === "string" && /^-?\d+$/.test(v.trim());
+}
+
+function _normalizeParamTypeForQcsdk(type, components) {
+  if (typeof type !== "string") return type;
+
+  // Arrays preserve their shape; normalize the element type.
+  if (type.endsWith("]")) {
+    const inner = type.slice(0, type.lastIndexOf("["));
+    const suffix = type.slice(type.lastIndexOf("["));
+    return _normalizeParamTypeForQcsdk(inner, components) + suffix;
+  }
+
+  // Tuples: normalize component types recursively.
+  if (type === "tuple") return "tuple";
+
+  // quantum-coin-js-sdk currently only reliably packs int256/uint256.
+  if (type === "uint" || type.startsWith("uint")) return "uint256";
+  if (type === "int" || type.startsWith("int")) return "int256";
+
+  // Fixed-size bytes (bytes1..bytes32) are encoded as a single 32-byte word.
+  // Encode them via uint256 (big-endian), with right-padding applied.
+  if (type.startsWith("bytes")) {
+    const m = type.match(/^bytes(\d+)$/);
+    if (m) return "uint256";
+  }
+
+  return type;
+}
+
+function _normalizeAbiForQcsdk(abi) {
+  const out = Array.isArray(abi) ? abi.map((f) => ({ ...(f || {}) })) : [];
+  for (const f of out) {
+    if (!f || typeof f !== "object") continue;
+    const inputs = Array.isArray(f.inputs) ? f.inputs : [];
+    const outputs = Array.isArray(f.outputs) ? f.outputs : [];
+    const normalizeParams = (params) =>
+      params.map((p) => {
+        const np = { ...(p || {}) };
+        np.type = _normalizeParamTypeForQcsdk(String(np.type || ""), np.components);
+        if (Array.isArray(np.components) && np.components.length > 0) {
+          np.components = normalizeParams(np.components);
+        }
+        return np;
+      });
+    f.inputs = normalizeParams(inputs);
+    if (f.type === "function") f.outputs = normalizeParams(outputs);
+    if (f.type === "event") f.inputs = normalizeParams(inputs);
+    if (f.type === "error") f.inputs = normalizeParams(inputs);
+    if (f.type === "constructor") f.inputs = normalizeParams(inputs);
+  }
+  return out;
+}
+
+function _fixedBytesToUint256Decimal(type, value) {
+  // Allow already-normalized numeric values.
+  if (typeof value === "number") return value;
+  if (_isNumericString(value)) return value.trim();
+
+  const m = String(type || "").match(/^bytes(\d+)$/);
+  const n = m ? Number(m[1]) : 0;
+  if (!Number.isFinite(n) || n < 1 || n > 32) return value;
+
+  const b = arrayify(value);
+  if (b.length > n) throw makeError("fixed bytes value exceeds length", "INVALID_ARGUMENT", { type, length: b.length });
+
+  // Right-pad to N bytes, then right-pad to 32 bytes (Solidity fixed bytes encoding).
+  const fixed = new Uint8Array(n);
+  fixed.set(b, 0);
+  const word = new Uint8Array(32);
+  word.set(fixed, 0);
+
+  const hexWord = bytesToHex(word); // 0x + 64 hex
+  // Convert to decimal string for qcsdk (it can parse uint256 from decimal string).
+  return BigInt(hexWord).toString();
+}
+
+function _uint256ToFixedBytesHex(type, value) {
+  const m = String(type || "").match(/^bytes(\d+)$/);
+  const n = m ? Number(m[1]) : 0;
+  if (!Number.isFinite(n) || n < 1 || n > 32) return value;
+  if (value == null) return value;
+
+  const bi = typeof value === "bigint" ? value : BigInt(value);
+  let hex = bi.toString(16);
+  if (hex.length > 64) hex = hex.slice(-64);
+  hex = hex.padStart(64, "0");
+  // bytesN is the first N bytes (right-padded in the 32-byte word).
+  return normalizeHex("0x" + hex.slice(0, n * 2));
+}
+
+function _convertInputValueForQcsdk(param, value) {
+  const type = String(param && param.type ? param.type : "");
+
+  // Apply bigint sanitization early.
+  const v = _sanitizeArg(value);
+
+  // Arrays
+  if (type.endsWith("]")) {
+    const innerType = type.slice(0, type.lastIndexOf("["));
+    const innerParam = { ...(param || {}), type: innerType };
+    if (!Array.isArray(v)) return v;
+    return v.map((x) => _convertInputValueForQcsdk(innerParam, x));
+  }
+
+  // Tuples
+  if (type === "tuple") {
+    const comps = Array.isArray(param && param.components) ? param.components : [];
+    if (Array.isArray(v)) {
+      return v.map((x, idx) => _convertInputValueForQcsdk(comps[idx] || { type: "uint256" }, x));
+    }
+    if (v && typeof v === "object") {
+      const out = {};
+      for (let i = 0; i < comps.length; i++) {
+        const c = comps[i];
+        const name = c && typeof c.name === "string" && c.name ? c.name : String(i);
+        out[name] = _convertInputValueForQcsdk(c, v[name] != null ? v[name] : v[String(i)]);
+      }
+      return out;
+    }
+    return v;
+  }
+
+  // Fixed bytes
+  const mBytes = type.match(/^bytes(\d+)$/);
+  if (mBytes) {
+    return _fixedBytesToUint256Decimal(type, v);
+  }
+
+  return v;
+}
+
+function _convertOutputValueFromQcsdk(param, value) {
+  const type = String(param && param.type ? param.type : "");
+
+  if (type.endsWith("]")) {
+    const innerType = type.slice(0, type.lastIndexOf("["));
+    const innerParam = { ...(param || {}), type: innerType };
+    if (!Array.isArray(value)) return value;
+    return value.map((x) => _convertOutputValueFromQcsdk(innerParam, x));
+  }
+
+  if (type === "tuple") {
+    const comps = Array.isArray(param && param.components) ? param.components : [];
+    if (Array.isArray(value)) {
+      return value.map((x, idx) => _convertOutputValueFromQcsdk(comps[idx] || { type: "uint256" }, x));
+    }
+    if (value && typeof value === "object") {
+      const out = {};
+      for (let i = 0; i < comps.length; i++) {
+        const c = comps[i];
+        const name = c && typeof c.name === "string" && c.name ? c.name : String(i);
+        const raw = Object.prototype.hasOwnProperty.call(value, name)
+          ? value[name]
+          : Object.prototype.hasOwnProperty.call(value, String(i))
+            ? value[String(i)]
+            : undefined;
+        out[name] = _convertOutputValueFromQcsdk(c, raw);
+      }
+      return out;
+    }
+    return value;
+  }
+
+  const mBytes = type.match(/^bytes(\d+)$/);
+  if (mBytes) {
+    return _uint256ToFixedBytesHex(type, value);
+  }
+
+  // Normalize integer outputs to bigint for consistency with core typings.
+  if (type === "uint" || type.startsWith("uint") || type === "int" || type.startsWith("int")) {
+    if (value == null) return value;
+    if (typeof value === "bigint") return value;
+    try {
+      return BigInt(value);
+    } catch {
+      return value;
+    }
+  }
+
+  return value;
+}
+
 class Interface {
   /**
    * @param {any[]|Interface} abi
@@ -55,6 +240,8 @@ class Interface {
   constructor(abi) {
     this.abi = _asAbiArray(abi);
     this._abiJson = JSON.stringify(this.abi);
+    this._qcsdkAbi = _normalizeAbiForQcsdk(this.abi);
+    this._qcsdkAbiJson = JSON.stringify(this._qcsdkAbi);
   }
 
   /**
@@ -63,6 +250,26 @@ class Interface {
    */
   formatJson() {
     return this._abiJson;
+  }
+
+  /**
+   * Internal: normalized ABI JSON for qcsdk.
+   * @returns {string}
+   */
+  _qcsdkFormatJson() {
+    return this._qcsdkAbiJson;
+  }
+
+  /**
+   * Internal: normalize argument values for qcsdk based on original ABI params.
+   * @param {Array<any>} params
+   * @param {Array<any>} values
+   * @returns {Array<any>}
+   */
+  _qcsdkNormalizeValues(params, values) {
+    const ps = Array.isArray(params) ? params : [];
+    const vs = Array.isArray(values) ? values : [];
+    return ps.map((p, i) => _convertInputValueForQcsdk(p, vs[i]));
   }
 
   /**
@@ -130,8 +337,17 @@ class Interface {
     _requireInitialized();
     const name = typeof functionFragment === "string" ? functionFragment : functionFragment?.name;
     assertArgument(typeof name === "string" && name.length > 0, "invalid function", "functionFragment", functionFragment);
-    const args = _sanitizeArgs(values);
-    const res = qcsdk.packMethodData(this._abiJson, name, ...args);
+    const frag = this.getFunction(name);
+    const inputs = Array.isArray(frag.inputs) ? frag.inputs : [];
+    const rawArgs = Array.isArray(values) ? values : [];
+
+    // Fallback for complex ABI surfaces where qcsdk packing is unreliable.
+    if (jsAbi.needsJsAbi(inputs)) {
+      return jsAbi.encodeFunctionData(name, inputs, rawArgs);
+    }
+
+    const args = inputs.map((p, idx) => _convertInputValueForQcsdk(p, rawArgs[idx]));
+    const res = qcsdk.packMethodData(this._qcsdkAbiJson, name, ...args);
     if (!res || typeof res.error !== "string") throw makeError("packMethodData failed", "UNKNOWN_ERROR", {});
     if (res.error) throw makeError(res.error, "UNKNOWN_ERROR", { operation: "packMethodData", function: name });
     return normalizeHex(res.result);
@@ -148,11 +364,24 @@ class Interface {
     const name = typeof functionFragment === "string" ? functionFragment : functionFragment?.name;
     assertArgument(typeof name === "string" && name.length > 0, "invalid function", "functionFragment", functionFragment);
     assertArgument(typeof data === "string", "data must be a hex string", "data", data);
-    const res = qcsdk.unpackMethodData(this._abiJson, name, data);
+    const frag = this.getFunction(name);
+    const outputs = Array.isArray(frag.outputs) ? frag.outputs : [];
+
+    // Fallback for complex output surfaces.
+    if (jsAbi.needsJsAbi(outputs)) {
+      return jsAbi.decodeFunctionResult(outputs, data);
+    }
+
+    const res = qcsdk.unpackMethodData(this._qcsdkAbiJson, name, data);
     if (!res || typeof res.error !== "string") throw makeError("unpackMethodData failed", "UNKNOWN_ERROR", {});
     if (res.error) throw makeError(res.error, "UNKNOWN_ERROR", { operation: "unpackMethodData", function: name });
     try {
-      return JSON.parse(res.result);
+      const decoded = JSON.parse(res.result);
+      // qcsdk generally returns an array for function outputs; convert bytesN back to hex.
+      if (Array.isArray(decoded)) {
+        return decoded.map((v, i) => _convertOutputValueFromQcsdk(outputs[i] || { type: "uint256" }, v));
+      }
+      return _convertOutputValueFromQcsdk(outputs[0] || { type: "uint256" }, decoded);
     } catch {
       return res.result;
     }
@@ -168,8 +397,11 @@ class Interface {
     _requireInitialized();
     const name = typeof eventFragment === "string" ? eventFragment : eventFragment?.name;
     assertArgument(typeof name === "string" && name.length > 0, "invalid event", "eventFragment", eventFragment);
-    const args = _sanitizeArgs(values);
-    const res = qcsdk.encodeEventLog(this._abiJson, name, ...args);
+    const frag = this.getEvent(name);
+    const inputs = Array.isArray(frag.inputs) ? frag.inputs : [];
+    const rawArgs = Array.isArray(values) ? values : [];
+    const args = inputs.map((p, idx) => _convertInputValueForQcsdk(p, rawArgs[idx]));
+    const res = qcsdk.encodeEventLog(this._qcsdkAbiJson, name, ...args);
     if (!res || typeof res.error !== "string") throw makeError("encodeEventLog failed", "UNKNOWN_ERROR", {});
     if (res.error) throw makeError(res.error, "UNKNOWN_ERROR", { operation: "encodeEventLog", event: name });
     return res.result;
@@ -188,11 +420,17 @@ class Interface {
     assertArgument(typeof name === "string" && name.length > 0, "invalid event", "eventFragment", eventFragment);
     assertArgument(Array.isArray(topics), "topics must be an array", "topics", topics);
     assertArgument(typeof data === "string", "data must be a string", "data", data);
-    const res = qcsdk.decodeEventLog(this._abiJson, name, topics, data);
+    const frag = this.getEvent(name);
+    const inputs = Array.isArray(frag.inputs) ? frag.inputs : [];
+    const res = qcsdk.decodeEventLog(this._qcsdkAbiJson, name, topics, data);
     if (!res || typeof res.error !== "string") throw makeError("decodeEventLog failed", "UNKNOWN_ERROR", {});
     if (res.error) throw makeError(res.error, "UNKNOWN_ERROR", { operation: "decodeEventLog", event: name });
     try {
-      return JSON.parse(res.result);
+      const decoded = JSON.parse(res.result);
+      if (Array.isArray(decoded)) {
+        return decoded.map((v, i) => _convertOutputValueFromQcsdk(inputs[i] || { type: "uint256" }, v));
+      }
+      return decoded;
     } catch {
       return res.result;
     }

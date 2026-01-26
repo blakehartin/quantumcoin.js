@@ -11,7 +11,7 @@ export class Contract extends BaseContract {
      * @param {any=} providerOrSigner
      * @param {string=} bytecode
      */
-    constructor(address: string, abi: any[] | Interface, providerOrSigner?: any | undefined, bytecode?: string | undefined);
+    constructor(address: import("../types").AddressLike, abi: any[] | Interface, providerOrSigner?: any | undefined, bytecode?: string | undefined);
     address: string;
     target: string;
     bytecode: string;

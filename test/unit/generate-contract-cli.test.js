@@ -32,6 +32,7 @@ describe("generate-sdk.js CLI", () => {
     assert.ok(out.includes("--sol"));
     assert.ok(out.includes("--artifacts-json"));
     assert.ok(out.includes("--create-package"));
+    assert.ok(out.includes("--lang"));
     assert.ok(out.includes("EXAMPLES"));
   });
 });

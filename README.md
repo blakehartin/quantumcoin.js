@@ -84,6 +84,9 @@ This repo includes a generator described in `SPEC.md` section 15.
 # Non-interactive
 node generate-sdk.js --abi path/to/abi.json --bin path/to/bytecode.bin --out ./generated --name MyContract --non-interactive
 
+# JavaScript output (with TypeScript `.d.ts` types)
+node generate-sdk.js --lang js --abi path/to/abi.json --bin path/to/bytecode.bin --out ./generated --name MyContract --non-interactive
+
 # Interactive
 node generate-sdk.js --abi path/to/abi.json --bin path/to/bytecode.bin
 ```
@@ -91,6 +94,28 @@ node generate-sdk.js --abi path/to/abi.json --bin path/to/bytecode.bin
 If installed as a package, you can also run:
 
 `npx quantumcoin-sdk-generator --abi ... --bin ...`
+
+### Generator typing model
+
+- **Hard types**: generated wrappers use concrete types from `quantumcoin/types` (e.g. `Uint256Like` for inputs, `Uint256` for outputs).
+- **Single return values are unwrapped**: a Solidity function returning one value returns that value directly (not `[value]`).
+- **Multiple returns**: returned as a tuple type (e.g. `Promise<[Uint256, Bool]>`).
+- **No returns**: `Promise<void>`.
+- **Structs / tuples**: generated as `export type <Name>Input` / `export type <Name>Output` and used directly in method signatures.
+
+## Solidity types (TypeScript)
+
+QuantumCoin.js exports core Solidity-related typings from:
+
+- `quantumcoin/types`
+
+Common types:
+
+- `AddressLike` (currently `string`, 32-byte address)
+- `BytesLike` (`string | Uint8Array`)
+- `BigNumberish` (`string | number | bigint`)
+- **Hard Solidity aliases** (preferred for typed wrappers): `Uint256Like` / `Uint256`, `Int256Like` / `Int256`, `Bytes32Like` / `Bytes32`, and all widths `Uint8Like`…`Uint256Like`, `Int8Like`…`Int256Like`, plus `Bytes1Like`…`Bytes32Like`
+- `SolidityTypeName`, `SolidityInputValue<T>`, `SolidityOutputValue<T>` (advanced type-level mapping helpers; the generator no longer uses these for wrapper signatures)
 
 ## Examples
 

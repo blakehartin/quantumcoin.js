@@ -4,9 +4,10 @@
 
 const qcsdk = require("quantum-coin-js-sdk");
 const { Interface } = require("../abi/interface");
+const jsAbi = require("../abi/js-abi-coder");
 const { Contract } = require("./contract");
 const { makeError, assertArgument } = require("../errors");
-const { normalizeHex } = require("../internal/hex");
+const { normalizeHex, strip0x, bytesToHex } = require("../internal/hex");
 const { getCreateAddress } = require("../utils/address");
 
 function _requireInitialized() {
@@ -38,7 +39,18 @@ class ContractFactory {
    */
   getDeployTransaction(...args) {
     _requireInitialized();
-    const res = qcsdk.packCreateContractData(this.interface.formatJson(), this.bytecode, ...args);
+    const ctor = this.interface.getConstructor();
+    const ctorInputs = ctor ? ctor.inputs : [];
+
+    // If the constructor includes tuples/structs, use the JS ABI encoder fallback.
+    if (jsAbi.hasTuple(ctorInputs)) {
+      const enc = jsAbi.encodeTupleLike(ctorInputs, args);
+      const data = normalizeHex(this.bytecode + strip0x(bytesToHex(enc)));
+      return { to: null, data, value: 0n };
+    }
+
+    const normArgs = this.interface._qcsdkNormalizeValues(ctorInputs, args);
+    const res = qcsdk.packCreateContractData(this.interface._qcsdkFormatJson(), this.bytecode, ...normArgs);
     if (!res || typeof res.error !== "string") throw makeError("packCreateContractData failed", "UNKNOWN_ERROR", {});
     if (res.error) throw makeError(res.error, "UNKNOWN_ERROR", { operation: "packCreateContractData" });
     return { to: null, data: normalizeHex(res.result), value: 0n };

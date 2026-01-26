@@ -109,3 +109,19 @@ declare const _exports: {
 };
 export = _exports;
 import errors = require("./errors");
+
+// ---------------------------------------------------------------------------
+// Core Solidity typing exports (type-only)
+// ---------------------------------------------------------------------------
+declare namespace _exports {
+    export type AddressLike = import("./types").AddressLike;
+    export type BytesLike = import("./types").BytesLike;
+    export type Bytes32Like = import("./types").Bytes32Like;
+    export type BigNumberish = import("./types").BigNumberish;
+    export type HexString = import("./types").HexString;
+    export type SolidityTypeName = import("./types").SolidityTypeName;
+    export type SolidityInputValue<T extends SolidityTypeName> = import("./types").SolidityInputValue<T>;
+    export type SolidityOutputValue<T extends SolidityTypeName> = import("./types").SolidityOutputValue<T>;
+    export type SolidityTuple = import("./types").SolidityTuple;
+    export type SolidityStruct = import("./types").SolidityStruct;
+}

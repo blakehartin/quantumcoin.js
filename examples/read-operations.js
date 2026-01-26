@@ -17,8 +17,7 @@ async function readOperations() {
   const contract = new Contract(STAKING_CONTRACT, abi, provider);
 
   const total = await contract.getTotalDepositedBalance();
-  const value = Array.isArray(total) ? total[0] : total;
-  console.log("Total deposited balance:", String(value));
+  console.log("Total deposited balance:", total.toString());
 }
 
 readOperations().catch((e) => {

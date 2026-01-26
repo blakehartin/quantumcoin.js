@@ -31,7 +31,7 @@ describe("Utils", () => {
     assert.equal(qc.toUtf8String(out), "hello world");
   });
 
-  it("RLP encode/decode roundtrip (ethers-style bytes)", () => {
+  it("RLP encode/decode roundtrip (hex bytes)", () => {
     const value = ["0x68656c6c6f", "0x7b", "0x01"];
     const encoded = qc.encodeRlp(value);
     assert.ok(typeof encoded === "string" && encoded.startsWith("0x"));
