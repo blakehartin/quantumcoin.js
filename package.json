@@ -1,6 +1,6 @@
 {
   "name": "quantumcoin",
-  "version": "7.0.2",
+  "version": "7.0.3",
   "description": "QuantumCoin SDK - a complete SDK for dapps",
   "main": "index.js",
   "types": "src/index.d.ts",
