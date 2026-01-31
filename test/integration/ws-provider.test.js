@@ -10,7 +10,7 @@ const assert = require("node:assert/strict");
 
 const qc = require("../../index");
 
-const WS = "ws://127.0.0.1:8546";
+const WS = process.env.QC_WS_URL || "ws://127.0.0.1:8546";
 
 describe("WebSocketProvider (readonly)", () => {
   it("getBlockNumber and getBlock('latest') work over WebSocket", async (t) => {

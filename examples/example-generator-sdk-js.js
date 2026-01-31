@@ -70,7 +70,7 @@ function main() {
       "--package-name",
       pkgName,
       "--package-description",
-      "Example generated package (JS output) for quantumcoin-sdk-generator",
+      "Example generated package (JS output) for sdkgen",
       "--package-author",
       "QuantumCoin Community",
       "--package-license",

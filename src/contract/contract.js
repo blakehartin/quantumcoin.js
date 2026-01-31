@@ -132,6 +132,25 @@ class Contract extends BaseContract {
 
     this._listeners = new Map();
 
+    // ethers-style populateTransaction namespace:
+    //   await contract.populateTransaction.someMethod(arg1, ..., overrides?)
+    //
+    // NOTE: This will shadow any ABI function literally named "populateTransaction".
+    // Such a function can still be invoked via `contract.call("populateTransaction", ...)`
+    // or `contract.send("populateTransaction", ...)`.
+    const self = this;
+    this.populateTransaction = new Proxy(
+      {},
+      {
+        get(_t, prop) {
+          if (typeof prop !== "string") return undefined;
+          const fn = self.interface.abi.find((f) => f && f.type === "function" && f.name === prop);
+          if (!fn) return undefined;
+          return (...args) => self._populate(prop, args);
+        },
+      },
+    );
+
     // Proxy to support dynamic method names: contract.someMethod(...)
     return new Proxy(this, {
       get: (target, prop, receiver) => {
@@ -181,6 +200,29 @@ class Contract extends BaseContract {
     }
 
     return this.send(methodName, callArgs, overrides);
+  }
+
+  /**
+   * Build an unsigned transaction request for a contract method call.
+   * @param {string} methodName
+   * @param {any[]} args
+   * @returns {Promise<import("../providers/provider").TransactionRequest>}
+   */
+  async _populate(methodName, args) {
+    const fn = this.interface.abi.find((f) => f && f.type === "function" && f.name === methodName);
+    if (!fn) throw makeError("function not found", "INVALID_ARGUMENT", { methodName });
+
+    const inputCount = Array.isArray(fn.inputs) ? fn.inputs.length : 0;
+    let overrides = undefined;
+    let callArgs = Array.isArray(args) ? args : [];
+
+    if (callArgs.length === inputCount + 1 && _isOverridesLike(callArgs[callArgs.length - 1])) {
+      overrides = callArgs[callArgs.length - 1];
+      callArgs = callArgs.slice(0, inputCount);
+    }
+
+    const data = this.interface.encodeFunctionData(methodName, callArgs);
+    return { to: this.address, data, ...(overrides || {}) };
   }
 
   /**

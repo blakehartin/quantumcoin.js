@@ -671,7 +671,7 @@ It supports generating:
 
 **Entry point**
 - `node generate-sdk.js ...`
-- or `npx quantumcoin-sdk-generator ...` (when installed)
+- or `npx sdkgen ...` (when installed)
 
 ### Input modes
 

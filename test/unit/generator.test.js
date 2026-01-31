@@ -53,6 +53,7 @@ describe("typed contract generator", () => {
     assert.ok(contractSrc.includes("export class TestToken"));
     assert.ok(contractSrc.includes("async balanceOf"));
     assert.ok(contractSrc.includes("async transfer"));
+    assert.ok(contractSrc.includes("populateTransaction"));
 
     const factorySrc = fs.readFileSync(res.factoryFile, "utf8");
     assert.ok(factorySrc.includes("export class TestToken__factory"));
