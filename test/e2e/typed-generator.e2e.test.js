@@ -264,6 +264,7 @@ describe("typed contract generator package e2e", () => {
       // Verify tests exist for each contract
       assert.ok(fs.existsSync(path.join(pkgRoot, "test", "e2e", "Alpha.e2e.test.js")));
       assert.ok(fs.existsSync(path.join(pkgRoot, "test", "e2e", "ConstructorParam.e2e.test.js")));
+      assert.ok(fs.existsSync(path.join(pkgRoot, "test", "e2e", "all-contracts.e2e.test.js")));
 
       // Multi-contract packages use per-contract example filenames.
       assert.ok(fs.existsSync(path.join(pkgRoot, "examples", "deploy-Alpha.js")));
@@ -368,6 +369,7 @@ describe("typed contract generator package e2e", () => {
       // Verify tests exist for each contract
       assert.ok(fs.existsSync(path.join(pkgRoot, "test", "e2e", "Alpha.e2e.test.js")));
       assert.ok(fs.existsSync(path.join(pkgRoot, "test", "e2e", "Beta.e2e.test.js")));
+      assert.ok(fs.existsSync(path.join(pkgRoot, "test", "e2e", "all-contracts.e2e.test.js")));
 
       // Verify Solidity comments were propagated into generated TS
       const alphaTs = fs.readFileSync(path.join(pkgRoot, "src", "Alpha.ts"), "utf8");

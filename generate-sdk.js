@@ -20,7 +20,7 @@ const readline = require("node:readline/promises");
 const { stdin, stdout } = require("node:process");
 const { execFileSync, spawnSync } = require("node:child_process");
 
-const { generate, generateFromArtifacts, generateTransactionalTestJs } = require("./src/generator");
+const { generate, generateFromArtifacts, generateTransactionalTestJs, generateAllContractsTransactionalTestJs } = require("./src/generator");
 
 function _helpText() {
   return `
@@ -878,6 +878,13 @@ async function main() {
       _writeText(
         path.join(outDir, "test", "e2e", `${a.contractName}.e2e.test.js`),
         generateTransactionalTestJs({ contractName: a.contractName, abi: a.abi }),
+      );
+    }
+
+    if (artifacts.length > 1) {
+      _writeText(
+        path.join(outDir, "test", "e2e", "all-contracts.e2e.test.js"),
+        generateAllContractsTransactionalTestJs({ artifacts: artifacts.map((a) => ({ contractName: a.contractName, abi: a.abi })) }),
       );
     }
 
