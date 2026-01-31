@@ -1,6 +1,4 @@
-<!--
-This is an experimental SDK. Please do not use for production. Use at own risk
--->
+> **CAUTION:** This is an experimental SDK. Use at your own risk.
 
 # QuantumCoin.js - Ethers.js v6 Compatible API Specification
 
