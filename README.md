@@ -93,7 +93,7 @@ node generate-sdk.js --abi path/to/abi.json --bin path/to/bytecode.bin
 
 If installed as a package, you can also run:
 
-`npx quantumcoin-sdk-generator --abi ... --bin ...`
+`npx sdkgen --abi ... --bin ...`
 
 ### Generator typing model
 

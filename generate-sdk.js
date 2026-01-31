@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * quantumcoin-sdk-generator
+ * sdkgen
  *
  * NOTE: This script is the SDK generator CLI entrypoint.
  *
@@ -24,7 +24,7 @@ const { generate, generateFromArtifacts, generateTransactionalTestJs } = require
 
 function _helpText() {
   return `
-quantumcoin-sdk-generator (generate-sdk.js)
+sdkgen (generate-sdk.js)
 
 Generates TypeScript or JavaScript contract wrappers (plus optional package scaffold, examples and transactional tests).
 
@@ -1212,6 +1212,7 @@ main().catch((e) => {
     }
   }
 
+  console.warn("This is an experimental SDK. Use at your own risk.");
   console.log(`Generated contract files in: ${targetSrcDir}`);
 }
 
@@ -1344,6 +1345,7 @@ function _packageReadme({ pkgName, pkgDesc, artifacts, createdFromSolidity, lang
   return (
     `# ${pkgName}\n\n` +
     `${pkgDesc || ""}\n\n` +
+    "> **Note:** This is an experimental SDK. Use at your own risk.\n\n" +
     "## What’s in this package\n\n" +
     (outLang === "ts"
       ? "- Typed contract wrappers and factories in `src/` (compiled output in `dist/`)\n"
@@ -1419,6 +1421,7 @@ function _createPackageScaffold({ outDir, pkgName, pkgDesc, pkgAuthor, pkgLicens
     _writeJson(path.join(outDir, "tsconfig.json"), {
       compilerOptions: {
         target: "ES2022",
+        lib: ["ES2022"],
         module: "CommonJS",
         declaration: true,
         outDir: "dist",

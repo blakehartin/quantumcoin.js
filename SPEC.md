@@ -3823,7 +3823,7 @@ The generator should be invoked as a command-line tool or script:
 
 ```bash
 # As a CLI tool
-npx quantumcoin-sdk-generator --abi path/to/abi.json --bin path/to/bytecode.bin
+npx sdkgen --abi path/to/abi.json --bin path/to/bytecode.bin
 
 # Or as a Node.js script
 node generate-sdk.js --abi path/to/abi.json --bin path/to/bytecode.bin

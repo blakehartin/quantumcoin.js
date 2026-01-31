@@ -25,7 +25,7 @@ describe("generate-sdk.js CLI", () => {
 
     assert.equal(res.status, 0);
     const out = `${res.stdout || ""}${res.stderr || ""}`;
-    assert.ok(out.includes("quantumcoin-sdk-generator"));
+    assert.ok(out.includes("sdkgen"));
     assert.ok(out.includes("INPUT MODES"));
     assert.ok(out.includes("--abi"));
     assert.ok(out.includes("--bin"));
