@@ -1,6 +1,4 @@
-<!--
-This is an experimental SDK. Use at your own risk.
--->
+> **CAUTION:** This is an experimental SDK. Use at your own risk.
 
 # QuantumCoin.js — Comprehensive SDK Documentation
 

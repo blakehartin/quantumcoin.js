@@ -1,6 +1,4 @@
-<!--
-This is an experimental SDK. Use at your own risk.
--->
+> **CAUTION:** This is an experimental SDK. Use at your own risk.
 
 **Comprehensive SDK documentation:** see [`README-SDK.md`](./README-SDK.md).
 
