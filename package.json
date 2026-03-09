@@ -1,6 +1,6 @@
 {
   "name": "quantumcoin",
-  "version": "7.0.3",
+  "version": "7.0.4",
   "description": "QuantumCoin SDK - a complete SDK for dapps",
   "main": "index.js",
   "types": "src/index.d.ts",
@@ -70,6 +70,6 @@
   "dependencies": {
     "quantum-coin-pqc-js-sdk": "^1.0.5",
     "seed-words": "^1.0.2",
-    "quantum-coin-js-sdk": "^1.0.28"
+    "quantum-coin-js-sdk": "file:../quantum-coin-js-sdk"
   }
 }

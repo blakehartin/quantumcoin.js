@@ -1077,7 +1077,7 @@ const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
 
 const { Initialize } = require("quantumcoin/config");
-const { JsonRpcProvider, Wallet } = require("quantumcoin");
+const { getProvider, Wallet } = require("quantumcoin");
 
 // NOTE: this test file lives at test/e2e/*.js, so package root is two levels up.
 // Require the package root so it works for both TS (dist) and JS (src) packages.
@@ -1101,7 +1101,7 @@ describe("${contractName} transactional", () => {
     const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;
     await Initialize(null);
 
-    const provider = new JsonRpcProvider(rpcUrl, chainId);
+    const provider = getProvider(rpcUrl, chainId);
     const wallet = Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE, provider);
 
     const factory = new ${factoryName}(wallet);
@@ -1258,7 +1258,7 @@ const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
 
 const { Initialize } = require("quantumcoin/config");
-const { JsonRpcProvider, Wallet } = require("quantumcoin");
+const { getProvider, Wallet } = require("quantumcoin");
 
 ${requireLine}
 
@@ -1280,7 +1280,7 @@ describe("all contracts", () => {
     const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;
     await Initialize(null);
 
-    const provider = new JsonRpcProvider(rpcUrl, chainId);
+    const provider = getProvider(rpcUrl, chainId);
     const wallet = Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE, provider);
 
     let deployGasLimit = 600000;

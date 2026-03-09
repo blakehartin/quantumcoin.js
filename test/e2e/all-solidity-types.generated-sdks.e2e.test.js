@@ -60,7 +60,7 @@ const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
 
 const { Initialize } = require("quantumcoin/config");
-const { JsonRpcProvider, Wallet } = require("quantumcoin");
+const { getProvider, Wallet } = require("quantumcoin");
 
 // Require the generated package root (works for both TS and JS packages)
 const { AllSolidityTypes__factory } = require("../..");
@@ -172,12 +172,12 @@ function buildOuter(addr) {
 
 describe("AllSolidityTypes (extra)", () => {
   it("roundtrips all methods", async (t) => {
-    const rpcUrl = process.env.QC_RPC_URL;
-    if (!rpcUrl) { t.skip("QC_RPC_URL not provided"); return; }
-    const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;
+    const rpcUrl = getRpcUrl();
+    if (!rpcUrl) { t.skip("QC_RPC_URL/QC_ENDPOINT not provided"); return; }
+    const chainId = getChainId();
     await Initialize(null);
 
-    const provider = new JsonRpcProvider(rpcUrl, chainId);
+    const provider = getProvider(rpcUrl, chainId);
     const wallet = Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE, provider);
 
     const expectedU = buildAllUints(1);

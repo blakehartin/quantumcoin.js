@@ -15,7 +15,7 @@ const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 
 const { Initialize } = require("quantumcoin/config");
-const { JsonRpcProvider, Wallet, Contract, ContractFactory, getCreateAddress } = require("quantumcoin");
+const { getProvider, Wallet, Contract, ContractFactory, getCreateAddress } = require("quantumcoin");
 
 const { getRpcUrl, getChainId, getSolcPath, assertSolcExists } = require("./helpers");
 const {
@@ -62,7 +62,7 @@ describe("AllSolidityTypes (dynamic Contract)", () => {
     assert.ok(fs.existsSync(solPath), "missing examples/AllSolidityTypes.sol");
 
     await Initialize(null);
-    const provider = new JsonRpcProvider(rpcUrl, chainId);
+    const provider = getProvider(rpcUrl, chainId);
     const wallet = Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE, provider);
 
     const { abi, bytecode } = compileAllSolidityTypes({ solcPath, solPath });

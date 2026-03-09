@@ -7,7 +7,7 @@
  */
 
 const { Initialize } = require("../config");
-const { JsonRpcProvider, Contract } = require("..");
+const { getProvider, Contract } = require("..");
 
 const RPC = "https://public.rpc.quantumcoinapi.com";
 const CHAIN_ID = 123123;
@@ -16,7 +16,7 @@ const STAKING_CONTRACT = "0x" + "00".repeat(30) + "10" + "00"; // 0x...1000
 async function eventsExample() {
   await Initialize(null);
 
-  const provider = new JsonRpcProvider(RPC, CHAIN_ID);
+  const provider = getProvider(RPC, CHAIN_ID);
   const abi = require("../test/fixtures/StakingContract.abi.json");
   const contract = new Contract(STAKING_CONTRACT, abi, provider);
 

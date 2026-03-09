@@ -100,6 +100,14 @@ export class BrowserProvider extends AbstractProvider {
     hasSigner(address: number | string): Promise<boolean>;
 }
 /**
+ * Create a provider from an endpoint string (HTTP, WebSocket, or IPC).
+ * @param endpoint - RPC URL (http/https), WebSocket URL (ws/wss), or IPC path. Omitted/empty uses default HTTP from Config.
+ * @param chainId - Optional chain ID (default 123123). Used for HTTP/WebSocket only.
+ * @returns AbstractProvider
+ */
+export function getProvider(endpoint?: string, chainId?: number): AbstractProvider;
+
+/**
  * FallbackProvider - uses the first provider in the list.
  */
 export class FallbackProvider extends AbstractProvider {

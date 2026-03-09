@@ -86,6 +86,7 @@ declare const _exports: {
     IpcSocketProvider: typeof import("./providers/extra-providers").IpcSocketProvider;
     BrowserProvider: typeof import("./providers/extra-providers").BrowserProvider;
     FallbackProvider: typeof import("./providers/extra-providers").FallbackProvider;
+    getProvider: typeof import("./providers/extra-providers").getProvider;
     FilterByBlockHash: typeof import("./providers/extra-providers").FilterByBlockHash;
     JsonRpcProvider: typeof import("./providers/json-rpc-provider").JsonRpcProvider;
     JsonRpcApiProvider: typeof import("./providers/json-rpc-provider").JsonRpcApiProvider;

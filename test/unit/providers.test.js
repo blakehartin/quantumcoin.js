@@ -104,7 +104,42 @@
    });
  });
  
- describe("Extra providers", () => {
+ describe("getProvider", () => {
+  it("returns JsonRpcProvider for http/https URLs", () => {
+    const p1 = qc.getProvider("https://public.rpc.quantumcoinapi.com", 123123);
+    const p2 = qc.getProvider("http://localhost:8545");
+    assert.ok(p1 instanceof qc.JsonRpcProvider);
+    assert.ok(p2 instanceof qc.JsonRpcProvider);
+    assert.equal(p1.url, "https://public.rpc.quantumcoinapi.com");
+    assert.equal(p1.chainId, 123123);
+  });
+
+  it("returns WebSocketProvider for ws/wss URLs", () => {
+    const p1 = qc.getProvider("ws://127.0.0.1:8546");
+    const p2 = qc.getProvider("wss://example.com/ws", 1);
+    assert.ok(p1 instanceof qc.WebSocketProvider);
+    assert.ok(p2 instanceof qc.WebSocketProvider);
+    assert.equal(p1.url, "ws://127.0.0.1:8546");
+    assert.equal(p2.chainId, 1);
+  });
+
+  it("returns IpcSocketProvider for IPC paths", () => {
+    const p = qc.getProvider("\\\\.\\pipe\\geth.ipc");
+    assert.ok(p instanceof qc.IpcSocketProvider);
+    assert.equal(p.path, "\\\\.\\pipe\\geth.ipc");
+  });
+
+  it("returns JsonRpcProvider with default url/chainId when endpoint omitted or empty", () => {
+    const p1 = qc.getProvider();
+    const p2 = qc.getProvider("");
+    assert.ok(p1 instanceof qc.JsonRpcProvider);
+    assert.ok(p2 instanceof qc.JsonRpcProvider);
+    assert.ok(p1.url.length > 0);
+    assert.equal(p1.chainId, 123123);
+  });
+});
+
+describe("Extra providers", () => {
   it("BrowserProvider requires an EIP-1193 provider with request()", () => {
      assert.throws(() => new qc.BrowserProvider(null), (e) => e && e.code === "INVALID_ARGUMENT");
      assert.throws(() => new qc.BrowserProvider({}), (e) => e && e.code === "INVALID_ARGUMENT");

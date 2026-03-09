@@ -2,7 +2,8 @@
  * @testCategory integration
  * @blockchainRequired readonly
  * @transactional false
- * @description Read-only WebSocket JSON-RPC integration tests against a local geth websocket endpoint
+ * @description Read-only WebSocket JSON-RPC integration tests (validates WebSocketProvider only).
+ * Skipped when QC_ENDPOINT is set (e.g. running integration tests over IPC).
  */
 
 const { describe, it } = require("node:test");
@@ -11,10 +12,11 @@ const assert = require("node:assert/strict");
 const qc = require("../../index");
 
 const WS = process.env.QC_WS_URL || "ws://127.0.0.1:8546";
+const skipBecauseOtherEndpoint = process.env.QC_ENDPOINT != null && process.env.QC_ENDPOINT !== "";
 
-describe("WebSocketProvider (readonly)", () => {
+describe("WebSocketProvider (readonly)", { skip: skipBecauseOtherEndpoint }, () => {
   it("getBlockNumber and getBlock('latest') work over WebSocket", async (t) => {
-    const provider = new qc.WebSocketProvider(WS);
+    const provider = qc.getProvider(WS);
     try {
       const bn = await provider.getBlockNumber();
       assert.ok(Number.isInteger(bn) && bn >= 0);

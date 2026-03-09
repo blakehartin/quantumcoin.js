@@ -24,8 +24,8 @@ async function main() {
 
   console.log("SDK initialized:", qc.isInitialized());
 
-  // Provider: basic read-only calls
-  const provider = new qc.JsonRpcProvider(RPC, CHAIN_ID);
+  // Provider: basic read-only calls (getProvider detects http/ws/ipc from endpoint)
+  const provider = qc.getProvider(RPC, CHAIN_ID);
   const blockNumber = await provider.getBlockNumber();
   console.log("Latest block:", blockNumber);
 

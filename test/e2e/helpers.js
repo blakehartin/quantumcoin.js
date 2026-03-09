@@ -15,6 +15,7 @@ function getArg(name) {
 
 function getRpcUrl() {
   return (
+    process.env.QC_ENDPOINT ||
     process.env.QC_RPC_URL ||
     getArg("--rpc") ||
     getArg("--rpcUrl") ||

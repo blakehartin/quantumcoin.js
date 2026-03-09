@@ -10,12 +10,11 @@ const assert = require("node:assert/strict");
 
 const qc = require("../../index");
 
-// Windows named pipe endpoint for geth IPC
-const IPC = "\\\\.\\pipe\\geth.ipc";
+const IPC = process.env.QC_ENDPOINT || process.env.QC_IPC_PATH || "\\\\.\\pipe\\geth.ipc";
 
 describe("IpcSocketProvider (readonly)", () => {
   it("getBlockNumber and getBlock('latest') work over IPC", async (t) => {
-    const provider = new qc.IpcSocketProvider(IPC);
+    const provider = qc.getProvider(IPC);
     try {
       const bn = await provider.getBlockNumber();
       assert.ok(Number.isInteger(bn) && bn >= 0);

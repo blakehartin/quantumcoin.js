@@ -73,7 +73,7 @@ describe("Transactional E2E (write)", () => {
     const chainId = getChainId();
     await Initialize(null);
 
-    const provider = new qc.JsonRpcProvider(rpcUrl, chainId);
+    const provider = qc.getProvider(rpcUrl, chainId);
     const wallet = qc.Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE, provider);
 
     // Recipient: random wallet (unfunded) so we can assert delta precisely.
@@ -133,7 +133,7 @@ describe("Transactional E2E (write)", () => {
     assertSolcExists(solcPath);
 
     await Initialize(null);
-    const provider = new qc.JsonRpcProvider(rpcUrl, chainId);
+    const provider = qc.getProvider(rpcUrl, chainId);
     const wallet = qc.Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE, provider);
 
     const { abi, bytecode } = compileSimpleStorage(solcPath);

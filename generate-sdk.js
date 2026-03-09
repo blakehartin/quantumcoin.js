@@ -905,7 +905,7 @@ async function main() {
  * WARNING: uses a hardcoded test wallet (funded) for convenience.
  */
 const { Initialize } = require("quantumcoin/config");
-const { JsonRpcProvider, Wallet } = require("quantumcoin");
+const { getProvider, Wallet } = require("quantumcoin");
 const { ${a.contractName}__factory } = require("..");
 
 // Hardcoded test wallet (test-only; never use for real funds)
@@ -921,7 +921,7 @@ async function main() {
   const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;
   await Initialize(null);
 
-  const provider = new JsonRpcProvider(rpcUrl, chainId);
+  const provider = getProvider(rpcUrl, chainId);
   const wallet = Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE, provider);
 
   const factory = new ${a.contractName}__factory(wallet);
@@ -952,7 +952,7 @@ main().catch((e) => {
  * - CONTRACT_ADDRESS env var
  */
 const { Initialize } = require("quantumcoin/config");
-const { JsonRpcProvider } = require("quantumcoin");
+const { getProvider } = require("quantumcoin");
 const { ${a.contractName} } = require("..");
 
 async function main() {
@@ -963,7 +963,7 @@ async function main() {
   if (!address) throw new Error("CONTRACT_ADDRESS is required");
   await Initialize(null);
 
-  const provider = new JsonRpcProvider(rpcUrl, chainId);
+  const provider = getProvider(rpcUrl, chainId);
   const contract = ${a.contractName}.connect(address, provider);
 
   console.log("Contract:", contract.target);
@@ -1005,7 +1005,7 @@ main().catch((e) => {
  * WARNING: uses a hardcoded test wallet (funded) for convenience.
  */
 const { Initialize } = require("quantumcoin/config");
-const { JsonRpcProvider, Wallet } = require("quantumcoin");
+const { getProvider, Wallet } = require("quantumcoin");
 const { ${a.contractName} } = require("..");
 
 // Hardcoded test wallet (test-only; never use for real funds)
@@ -1023,7 +1023,7 @@ async function main() {
   if (!address) throw new Error("CONTRACT_ADDRESS is required");
   await Initialize(null);
 
-  const provider = new JsonRpcProvider(rpcUrl, chainId);
+  const provider = getProvider(rpcUrl, chainId);
   const wallet = Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE, provider);
   const contract = ${a.contractName}.connect(address, wallet);
 
@@ -1060,7 +1060,7 @@ main().catch((e) => {
  * WARNING: uses a hardcoded test wallet (funded) for convenience.
  */
 const { Initialize } = require("quantumcoin/config");
-const { JsonRpcProvider, Wallet, getCreateAddress } = require("quantumcoin");
+const { getProvider, Wallet, getCreateAddress } = require("quantumcoin");
 const { ${a.contractName}, ${a.contractName}__factory } = require("..");
 
 // Hardcoded test wallet (test-only; never use for real funds)
@@ -1076,7 +1076,7 @@ async function main() {
   const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;
 
   await Initialize(null);
-  const provider = new JsonRpcProvider(rpcUrl, chainId);
+  const provider = getProvider(rpcUrl, chainId);
 
   // Offline wallet (no provider attached). We'll resolve nonce from provider manually.
   const wallet = Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE);
@@ -1144,7 +1144,7 @@ main().catch((e) => {
  * - CONTRACT_ADDRESS env var
  */
 const { Initialize } = require("quantumcoin/config");
-const { JsonRpcProvider } = require("quantumcoin");
+const { getProvider } = require("quantumcoin");
 const { ${a.contractName} } = require("..");
 
 async function main() {
@@ -1155,7 +1155,7 @@ async function main() {
   if (!address) throw new Error("CONTRACT_ADDRESS is required");
   await Initialize(null);
 
-  const provider = new JsonRpcProvider(rpcUrl, chainId);
+  const provider = getProvider(rpcUrl, chainId);
   const contract = ${a.contractName}.connect(address, provider);
 
   const fromBlock = process.env.FROM_BLOCK ? Number(process.env.FROM_BLOCK) : "latest";
@@ -1182,27 +1182,27 @@ main().catch((e) => {
 
         _writeText(
           path.join(outDir, "examples", `deploy-${a.contractName}.js`),
-          `const { Initialize } = require("quantumcoin/config");\nconst { JsonRpcProvider } = require("quantumcoin");\nconst { createTestWallet } = require("./_test-wallet");\nconst { ${a.contractName}__factory } = require("..");\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL;\n  if (!rpcUrl) throw new Error("QC_RPC_URL is required");\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  await Initialize(null);\n\n  const provider = new JsonRpcProvider(rpcUrl, chainId);\n  const wallet = createTestWallet(provider);\n\n  const factory = new ${a.contractName}__factory(wallet);\n  const contract = await factory.deploy(${ctorArgsExpr}${ctorArgsExpr ? ", " : ""}{ gasLimit: 600000 });\n  const tx = contract.deployTransaction();\n  if (tx) await tx.wait(1, 600_000);\n\n  console.log("Deployed ${a.contractName} at:", contract.target);\n}\n\nmain().catch((e) => { console.error(e); process.exitCode = 1; });\n`,
+          `const { Initialize } = require("quantumcoin/config");\nconst { getProvider } = require("quantumcoin");\nconst { createTestWallet } = require("./_test-wallet");\nconst { ${a.contractName}__factory } = require("..");\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL;\n  if (!rpcUrl) throw new Error("QC_RPC_URL is required");\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  await Initialize(null);\n\n  const provider = getProvider(rpcUrl, chainId);\n  const wallet = createTestWallet(provider);\n\n  const factory = new ${a.contractName}__factory(wallet);\n  const contract = await factory.deploy(${ctorArgsExpr}${ctorArgsExpr ? ", " : ""}{ gasLimit: 600000 });\n  const tx = contract.deployTransaction();\n  if (tx) await tx.wait(1, 600_000);\n\n  console.log("Deployed ${a.contractName} at:", contract.target);\n}\n\nmain().catch((e) => { console.error(e); process.exitCode = 1; });\n`,
         );
 
         _writeText(
           path.join(outDir, "examples", `read-operations-${a.contractName}.js`),
-          `const { Initialize } = require("quantumcoin/config");\nconst { JsonRpcProvider } = require("quantumcoin");\nconst { ${a.contractName} } = require("..");\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL;\n  if (!rpcUrl) throw new Error("QC_RPC_URL is required");\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  const address = process.env.CONTRACT_ADDRESS;\n  if (!address) throw new Error("CONTRACT_ADDRESS is required");\n  await Initialize(null);\n\n  const provider = new JsonRpcProvider(rpcUrl, chainId);\n  const contract = ${a.contractName}.connect(address, provider);\n\n  console.log("${a.contractName}:", contract.target);\n}\n\nmain().catch((e) => { console.error(e); process.exitCode = 1; });\n`,
+          `const { Initialize } = require("quantumcoin/config");\nconst { getProvider } = require("quantumcoin");\nconst { ${a.contractName} } = require("..");\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL;\n  if (!rpcUrl) throw new Error("QC_RPC_URL is required");\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  const address = process.env.CONTRACT_ADDRESS;\n  if (!address) throw new Error("CONTRACT_ADDRESS is required");\n  await Initialize(null);\n\n  const provider = getProvider(rpcUrl, chainId);\n  const contract = ${a.contractName}.connect(address, provider);\n\n  console.log("${a.contractName}:", contract.target);\n}\n\nmain().catch((e) => { console.error(e); process.exitCode = 1; });\n`,
         );
 
         _writeText(
           path.join(outDir, "examples", `write-operations-${a.contractName}.js`),
-          `const { Initialize } = require("quantumcoin/config");\nconst { JsonRpcProvider } = require("quantumcoin");\nconst { createTestWallet } = require("./_test-wallet");\nconst { ${a.contractName} } = require("..");\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL;\n  if (!rpcUrl) throw new Error("QC_RPC_URL is required");\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  const address = process.env.CONTRACT_ADDRESS;\n  if (!address) throw new Error("CONTRACT_ADDRESS is required");\n  await Initialize(null);\n\n  const provider = new JsonRpcProvider(rpcUrl, chainId);\n  const wallet = createTestWallet(provider);\n  const contract = ${a.contractName}.connect(address, wallet);\n\n  console.log("Connected:", contract.target);\n  console.log("Done");\n}\n\nmain().catch((e) => { console.error(e); process.exitCode = 1; });\n`,
+          `const { Initialize } = require("quantumcoin/config");\nconst { getProvider } = require("quantumcoin");\nconst { createTestWallet } = require("./_test-wallet");\nconst { ${a.contractName} } = require("..");\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL;\n  if (!rpcUrl) throw new Error("QC_RPC_URL is required");\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  const address = process.env.CONTRACT_ADDRESS;\n  if (!address) throw new Error("CONTRACT_ADDRESS is required");\n  await Initialize(null);\n\n  const provider = getProvider(rpcUrl, chainId);\n  const wallet = createTestWallet(provider);\n  const contract = ${a.contractName}.connect(address, wallet);\n\n  console.log("Connected:", contract.target);\n  console.log("Done");\n}\n\nmain().catch((e) => { console.error(e); process.exitCode = 1; });\n`,
         );
 
         _writeText(
           path.join(outDir, "examples", `offline-signing-${a.contractName}.js`),
-          `const { Initialize } = require("quantumcoin/config");\nconst { JsonRpcProvider, Wallet, getCreateAddress } = require("quantumcoin");\nconst { TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE } = require("./_test-wallet");\nconst { ${a.contractName}__factory, ${a.contractName} } = require("..");\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL;\n  if (!rpcUrl) throw new Error("QC_RPC_URL is required");\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  await Initialize(null);\n\n  const provider = new JsonRpcProvider(rpcUrl, chainId);\n  const wallet = Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE);\n  const from = wallet.address;\n\n  const factory = new ${a.contractName}__factory(wallet);\n  const deployTxReq = factory.getDeployTransaction();\n  const nonce0 = await provider.getTransactionCount(from, \"pending\");\n  const predicted = getCreateAddress({ from, nonce: nonce0 });\n\n  const rawDeploy = await wallet.signTransaction({ ...deployTxReq, nonce: nonce0, chainId, gasLimit: 6_000_000, gasPrice: 1n });\n  const sentDeploy = await provider.sendRawTransaction(rawDeploy);\n  await sentDeploy.wait(1, 600_000);\n\n  const contract = ${a.contractName}.connect(predicted, provider);\n  console.log(\"deployed at:\", contract.target);\n}\n\nmain().catch((e) => { console.error(e); process.exitCode = 1; });\n`,
+          `const { Initialize } = require("quantumcoin/config");\nconst { getProvider, Wallet, getCreateAddress } = require("quantumcoin");\nconst { TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE } = require("./_test-wallet");\nconst { ${a.contractName}__factory, ${a.contractName} } = require("..");\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL;\n  if (!rpcUrl) throw new Error("QC_RPC_URL is required");\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  await Initialize(null);\n\n  const provider = getProvider(rpcUrl, chainId);\n  const wallet = Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE);\n  const from = wallet.address;\n\n  const factory = new ${a.contractName}__factory(wallet);\n  const deployTxReq = factory.getDeployTransaction();\n  const nonce0 = await provider.getTransactionCount(from, \"pending\");\n  const predicted = getCreateAddress({ from, nonce: nonce0 });\n\n  const rawDeploy = await wallet.signTransaction({ ...deployTxReq, nonce: nonce0, chainId, gasLimit: 6_000_000, gasPrice: 1n });\n  const sentDeploy = await provider.sendRawTransaction(rawDeploy);\n  await sentDeploy.wait(1, 600_000);\n\n  const contract = ${a.contractName}.connect(predicted, provider);\n  console.log(\"deployed at:\", contract.target);\n}\n\nmain().catch((e) => { console.error(e); process.exitCode = 1; });\n`,
         );
 
         _writeText(
           path.join(outDir, "examples", `events-${a.contractName}.js`),
-          `const { Initialize } = require("quantumcoin/config");\nconst { JsonRpcProvider } = require("quantumcoin");\nconst { ${a.contractName} } = require("..");\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL;\n  if (!rpcUrl) throw new Error("QC_RPC_URL is required");\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  const address = process.env.CONTRACT_ADDRESS;\n  if (!address) throw new Error("CONTRACT_ADDRESS is required");\n  await Initialize(null);\n\n  const provider = new JsonRpcProvider(rpcUrl, chainId);\n  const contract = ${a.contractName}.connect(address, provider);\n\n  const logs = await contract.queryFilter("Transfer", "latest", "latest");\n  console.log("Logs:", logs.length);\n}\n\nmain().catch((e) => { console.error(e); process.exitCode = 1; });\n`,
+          `const { Initialize } = require("quantumcoin/config");\nconst { getProvider } = require("quantumcoin");\nconst { ${a.contractName} } = require("..");\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL;\n  if (!rpcUrl) throw new Error("QC_RPC_URL is required");\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  const address = process.env.CONTRACT_ADDRESS;\n  if (!address) throw new Error("CONTRACT_ADDRESS is required");\n  await Initialize(null);\n\n  const provider = getProvider(rpcUrl, chainId);\n  const contract = ${a.contractName}.connect(address, provider);\n\n  const logs = await contract.queryFilter("Transfer", "latest", "latest");\n  console.log("Logs:", logs.length);\n}\n\nmain().catch((e) => { console.error(e); process.exitCode = 1; });\n`,
         );
       }
     }
