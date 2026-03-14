@@ -100,14 +100,6 @@ export class BrowserProvider extends AbstractProvider {
     hasSigner(address: number | string): Promise<boolean>;
 }
 /**
- * Create a provider from an endpoint string (HTTP, WebSocket, or IPC).
- * @param endpoint - RPC URL (http/https), WebSocket URL (ws/wss), or IPC path. Omitted/empty uses default HTTP from Config.
- * @param chainId - Optional chain ID (default 123123). Used for HTTP/WebSocket only.
- * @returns AbstractProvider
- */
-export function getProvider(endpoint?: string, chainId?: number): AbstractProvider;
-
-/**
  * FallbackProvider - uses the first provider in the list.
  */
 export class FallbackProvider extends AbstractProvider {
@@ -132,5 +124,16 @@ export class FilterByBlockHash {
         topics: any;
     };
 }
+/**
+ * Create a provider from an endpoint string. Detects connection type by scheme/path:
+ * - http:// or https:// → JsonRpcProvider
+ * - ws:// or wss:// → WebSocketProvider
+ * - otherwise (e.g. \\\\.\\pipe\\geth.ipc or /path/to/geth.ipc) → IpcSocketProvider
+ *
+ * @param {string=} endpoint - RPC URL (http/https), WebSocket URL (ws/wss), or IPC path. If omitted or empty, uses default from Config (HTTP).
+ * @param {number=} chainId - Chain ID (default 123123). Used for HTTP and WebSocket; ignored for IPC.
+ * @returns {AbstractProvider}
+ */
+export function getProvider(endpoint?: string | undefined, chainId?: number | undefined): AbstractProvider;
 import { AbstractProvider } from "./provider";
 import { JsonRpcSigner } from "../wallet/wallet";

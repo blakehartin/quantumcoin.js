@@ -12,9 +12,12 @@ const os = require("node:os");
 const path = require("node:path");
 
 const { generate, generateFromArtifacts } = require("../../src/generator");
+const { logSuite, logTest } = require("../verbose-logger");
 
 describe("typed contract generator", () => {
+  logSuite("typed contract generator");
   it("generates contract + factory + types + index files", () => {
+    logTest("generates contract + factory + types + index files", {});
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "qcgen-"));
     const abiPath = path.join(tmp, "Test.abi.json");
     const binPath = path.join(tmp, "Test.bin");

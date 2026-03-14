@@ -9,9 +9,12 @@
  const assert = require("node:assert/strict");
  
  const { normalizeHex, isHexString, hexToBytes, bytesToHex, arrayify } = require("../../src/internal/hex");
+ const { logSuite, logTest } = require("../verbose-logger");
  
  describe("internal/hex", () => {
+   logSuite("internal/hex");
    it("normalizeHex lowercases, adds 0x, pads odd length", () => {
+     logTest("normalizeHex lowercases, adds 0x, pads odd length", {});
      assert.equal(normalizeHex("aa"), "0xaa");
     assert.equal(normalizeHex("0xAa"), "0xaa");
     assert.equal(normalizeHex("0xa"), "0x0a");

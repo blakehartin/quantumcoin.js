@@ -13,7 +13,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
-const { getRpcUrl, getChainId } = require("./helpers");
+const { getRpcUrl, getChainId, logE2eConfig } = require("./helpers");
+const { logSuite, logTest } = require("../verbose-logger");
 
 function getNpmCmd() {
   return process.platform === "win32" ? "npm.cmd" : "npm";
@@ -43,6 +44,14 @@ function runNpm(args, cwd, env) {
     return run("cmd.exe", ["/d", "/s", "/c", cmd], cwd, env);
   }
   return run(getNpmCmd(), args, cwd, env);
+}
+
+function runNpx(args, cwd, env) {
+  if (process.platform === "win32") {
+    const cmd = `npx ${args.map(_quoteIfNeeded).join(" ")}`;
+    return run("cmd.exe", ["/d", "/s", "/c", cmd], cwd, env);
+  }
+  return run("npx", args, cwd, env);
 }
 
 function writeExtraTest(pkgRoot) {
@@ -172,6 +181,8 @@ function buildOuter(addr) {
 
 describe("AllSolidityTypes (extra)", () => {
   it("roundtrips all methods", async (t) => {
+    logSuite("AllSolidityTypes (extra)");
+    logTest("roundtrips all methods", {});
     const rpcUrl = getRpcUrl();
     if (!rpcUrl) { t.skip("QC_RPC_URL/QC_ENDPOINT not provided"); return; }
     const chainId = getChainId();
@@ -269,12 +280,14 @@ function assertNoLegacyGenericTypes(pkgRoot, contractName, lang) {
 
 describe("AllSolidityTypes generated SDKs (extra tests)", () => {
   it("generates TS and JS packages and runs extra tests", async (t) => {
+    logSuite("AllSolidityTypes generated SDKs (extra tests)");
+    logTest("generates TS and JS packages and runs extra tests", {});
     const rpcUrl = getRpcUrl();
     if (!rpcUrl) {
       t.skip("QC_RPC_URL not provided");
       return;
     }
-
+    logE2eConfig();
     const chainId = getChainId();
     const repoRoot = path.resolve(__dirname, "..", "..");
     const solPath = path.join(repoRoot, "examples", "AllSolidityTypes.sol");
@@ -344,12 +357,18 @@ describe("AllSolidityTypes generated SDKs (extra tests)", () => {
       const jsRun = runNpm(["test"], jsPkg, env);
       assert.equal(jsRun.status, 0, `JS package tests failed:\n${jsRun.stdout}\n${jsRun.stderr}`);
 
-      // Run the generated offline signing example (offline deploy via sendRawTransaction).
-      const tsExample = run(process.execPath, [path.join(tsPkg, "examples", "offline-signing.js")], tsPkg, env);
-      assert.equal(tsExample.status, 0, `TS offline-signing example failed:\n${tsExample.stdout}\n${tsExample.stderr}`);
+      // Run the generated offline signing example (offline deploy via sendRawTransaction) - both JS and TS.
+      const tsExampleJs = run(process.execPath, [path.join(tsPkg, "examples", "offline-signing.js")], tsPkg, env);
+      assert.equal(tsExampleJs.status, 0, `TS package offline-signing.js failed:\n${tsExampleJs.stdout}\n${tsExampleJs.stderr}`);
 
-      const jsExample = run(process.execPath, [path.join(jsPkg, "examples", "offline-signing.js")], jsPkg, env);
-      assert.equal(jsExample.status, 0, `JS offline-signing example failed:\n${jsExample.stdout}\n${jsExample.stderr}`);
+      const tsExampleTs = runNpx(["tsx", path.join("examples", "offline-signing.ts")], tsPkg, env);
+      assert.equal(tsExampleTs.status, 0, `TS package offline-signing.ts failed:\n${tsExampleTs.stdout}\n${tsExampleTs.stderr}`);
+
+      const jsExampleJs = run(process.execPath, [path.join(jsPkg, "examples", "offline-signing.js")], jsPkg, env);
+      assert.equal(jsExampleJs.status, 0, `JS package offline-signing.js failed:\n${jsExampleJs.stdout}\n${jsExampleJs.stderr}`);
+
+      const jsExampleTs = runNpx(["tsx", path.join("examples", "offline-signing.ts")], jsPkg, env);
+      assert.equal(jsExampleTs.status, 0, `JS package offline-signing.ts failed:\n${jsExampleTs.stdout}\n${jsExampleTs.stderr}`);
 
       succeeded = true;
     } finally {

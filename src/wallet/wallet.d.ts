@@ -78,7 +78,7 @@ export class Wallet extends BaseWallet {
      */
     static fromEncryptedJsonSync(json: string, password: string, provider?: import("../providers/provider").AbstractProvider | undefined): Wallet;
     /**
-     * Creates a wallet from a seed phrase (48 words).
+     * Creates a wallet from a seed phrase (32, 36, or 48 words).
      * @param {string|string[]} phrase
      * @param {import("../providers/provider").AbstractProvider=} provider
      * @returns {Wallet}

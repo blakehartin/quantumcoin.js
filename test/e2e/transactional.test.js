@@ -25,7 +25,8 @@ const { execFileSync } = require("node:child_process");
 
 const qc = require("../../index");
 const { Initialize } = require("../../config");
-const { getRpcUrl, getChainId, getSolcPath, assertSolcExists } = require("./helpers");
+const { getRpcUrl, getChainId, getSolcPath, assertSolcExists, logE2eConfig } = require("./helpers");
+const { logSuite, logTest, logTxn, logAddress } = require("../verbose-logger");
 
 // ---------------------------------------------------------------------------
 // Hardcoded funded test wallet (from upstream SDK examples)
@@ -64,20 +65,25 @@ function compileSimpleStorage(solcPath) {
 
 describe("Transactional E2E (write)", () => {
   it("sends coins and validates balances + receipt", async (t) => {
+    logSuite("Transactional E2E (write)");
+    logTest("sends coins and validates balances + receipt", {});
     const rpcUrl = getRpcUrl();
     if (!rpcUrl) {
       t.skip("QC_RPC_URL (or --rpc) not provided");
       return;
     }
+    logE2eConfig();
 
     const chainId = getChainId();
     await Initialize(null);
 
     const provider = qc.getProvider(rpcUrl, chainId);
     const wallet = qc.Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE, provider);
+    logAddress("sender", wallet.address);
 
     // Recipient: random wallet (unfunded) so we can assert delta precisely.
     const recipient = qc.Wallet.createRandom();
+    logAddress("recipient", recipient.address);
 
     const sendValue = qc.parseEther("1.0");
 
@@ -93,8 +99,10 @@ describe("Transactional E2E (write)", () => {
       gasLimit,
       remarks: null,
     });
+    logTxn(tx.hash, { from: wallet.address, to: recipient.address, value: sendValue.toString() });
 
     const receipt = await tx.wait(1, 600_000);
+    logTxn(tx.hash, { blockNumber: receipt.blockNumber, status: receipt.status });
     assert.ok(receipt);
     assert.ok(receipt.blockNumber != null);
 
@@ -121,12 +129,53 @@ describe("Transactional E2E (write)", () => {
     assert.ok(nonceAfter >= nonceBefore + 1);
   }, { timeout: 900_000 });
 
-  it("deploys a contract (solc) and validates code + storage mutation", async (t) => {
+  it("sends coins with remarks and verifies remarks on read-back", async (t) => {
+    logSuite("Transactional E2E (write)");
+    logTest("sends coins with remarks and verifies remarks on read-back", {});
     const rpcUrl = getRpcUrl();
     if (!rpcUrl) {
       t.skip("QC_RPC_URL (or --rpc) not provided");
       return;
     }
+    logE2eConfig();
+
+    const chainId = getChainId();
+    await Initialize(null);
+
+    const provider = qc.getProvider(rpcUrl, chainId);
+    const wallet = qc.Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE, provider);
+    const recipient = qc.Wallet.createRandom();
+
+    const remarksText = "hello world";
+    const remarksHex = qc.hexlify(qc.toUtf8Bytes(remarksText));
+    const sendValue = qc.parseEther("0.01");
+    const gasLimit = 21000;
+
+    const tx = await wallet.sendTransaction({
+      to: recipient.address,
+      value: sendValue,
+      gasLimit,
+      remarks: remarksHex,
+    });
+    logTxn(tx.hash, { from: wallet.address, to: recipient.address, remarks: remarksText });
+
+    const receipt = await tx.wait(1, 600_000);
+    assert.ok(receipt);
+    assert.ok(receipt.blockNumber != null);
+
+    const readBack = await provider.getTransaction(tx.hash);
+    assert.ok(readBack, "getTransaction must return the transaction");
+    assert.equal(readBack.remarks, remarksHex, "remarks on chain must match what was set");
+  }, { timeout: 900_000 });
+
+  it("deploys a contract (solc) and validates code + storage mutation", async (t) => {
+    logTest("deploys a contract (solc) and validates code + storage mutation", {});
+    const rpcUrl = getRpcUrl();
+    if (!rpcUrl) {
+      t.skip("QC_RPC_URL (or --rpc) not provided");
+      return;
+    }
+    logE2eConfig();
 
     const chainId = getChainId();
     const solcPath = getSolcPath();
@@ -135,11 +184,13 @@ describe("Transactional E2E (write)", () => {
     await Initialize(null);
     const provider = qc.getProvider(rpcUrl, chainId);
     const wallet = qc.Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE, provider);
+    logAddress("deployer", wallet.address);
 
     const { abi, bytecode } = compileSimpleStorage(solcPath);
 
     const deployNonce = await provider.getTransactionCount(wallet.address, "latest");
     const expectedAddress = qc.getCreateAddress({ from: wallet.address, nonce: deployNonce });
+    logAddress("expected_contract", expectedAddress);
 
     // Use ContractFactory's deploy tx builder (uses quantum-coin-js-sdk packCreateContractData).
     const factory = new qc.ContractFactory(abi, bytecode, wallet);
@@ -160,8 +211,10 @@ describe("Transactional E2E (write)", () => {
       gasLimit,
       value: 0n,
     });
+    logTxn(deployTx.hash, { type: "deploy", expectedAddress });
 
     const receipt = await deployTx.wait(1, 600_000);
+    logTxn(deployTx.hash, { blockNumber: receipt.blockNumber, contractAddress: receipt.contractAddress });
     assert.ok(receipt);
     if (receipt.contractAddress) {
       assert.equal(receipt.contractAddress.toLowerCase(), expectedAddress.toLowerCase());
@@ -179,6 +232,7 @@ describe("Transactional E2E (write)", () => {
     assert.ok(beforeValue == 0 || beforeValue === "0" || beforeValue === 0n);
 
     const setTx = await contract.set(42n, { gasLimit: 200000 });
+    logTxn(setTx.hash, { contractAddress: expectedAddress });
     await setTx.wait(1, 600_000);
 
     const after = await contract.get();

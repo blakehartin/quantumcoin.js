@@ -9,9 +9,12 @@ const assert = require("node:assert/strict");
 
 const { Initialize } = require("../../config");
 const qc = require("../../index");
+const { logSuite, logTest } = require("../verbose-logger");
 
 describe("Interface.parseLog", () => {
+  logSuite("Interface.parseLog");
   it("parses an encoded event log and returns LogDescription-like result", async () => {
+    logTest("parses an encoded event log and returns LogDescription-like result", {});
     await Initialize(null);
 
     const abi = [

@@ -749,6 +749,8 @@ Generated package tests broadcast transactions and require:
   - `test/unit/generate-contract-cli.test.js`
   - `test/unit/generator.test.js`
   - `test/unit/generate-sdk-artifacts-json.test.js`
-- E2E generator tests (transactional):
+- E2E generator tests (transactional; require `QC_RPC_URL` and optionally `QC_CHAIN_ID`):
   - `test/e2e/typed-generator.e2e.test.js`
+  - `test/e2e/simple-erc20.generated-sdks.e2e.test.js`
+  - `test/e2e/all-solidity-types.generated-sdks.e2e.test.js`
 

@@ -11,7 +11,7 @@ export class Contract extends BaseContract {
      * @param {any=} providerOrSigner
      * @param {string=} bytecode
      */
-    constructor(address: import("../types").AddressLike, abi: any[] | Interface, providerOrSigner?: any | undefined, bytecode?: string | undefined);
+    constructor(address: string, abi: any[] | Interface, providerOrSigner?: any | undefined, bytecode?: string | undefined);
     address: string;
     target: string;
     bytecode: string;
@@ -19,10 +19,8 @@ export class Contract extends BaseContract {
     provider: any;
     signer: any;
     runner: any;
-    _listeners: any;
-    populateTransaction: {
-        [key: string]: (...args: any[]) => Promise<import("../providers/provider").TransactionRequest>;
-    };
+    _listeners: Map<any, any>;
+    populateTransaction: {};
     getAddress(): string;
     /**
      * Invoke a contract function, dispatching to call() or send().
@@ -31,6 +29,13 @@ export class Contract extends BaseContract {
      * @returns {Promise<any>}
      */
     _invoke(methodName: string, args: any[]): Promise<any>;
+    /**
+     * Build an unsigned transaction request for a contract method call.
+     * @param {string} methodName
+     * @param {any[]} args
+     * @returns {Promise<import("../providers/provider").TransactionRequest>}
+     */
+    _populate(methodName: string, args: any[]): Promise<import("../providers/provider").TransactionRequest>;
     /**
      * Perform a read-only call.
      * @param {string} methodName
@@ -47,12 +52,6 @@ export class Contract extends BaseContract {
      * @returns {Promise<ContractTransactionResponse>}
      */
     send(methodName: string, args: any[], overrides?: import("../providers/provider").TransactionRequest | undefined): Promise<ContractTransactionResponse>;
-    /**
-     * Build an unsigned transaction request for a contract method call.
-     * @param {string} methodName
-     * @param {any[]} args
-     */
-    _populate(methodName: string, args: any[]): Promise<import("../providers/provider").TransactionRequest>;
     /**
      * Query logs for an event.
      * @param {any} event

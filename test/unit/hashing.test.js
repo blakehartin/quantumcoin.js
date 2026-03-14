@@ -9,9 +9,12 @@
  const assert = require("node:assert/strict");
  
  const qc = require("../../index");
+ const { logSuite, logTest } = require("../verbose-logger");
  
  describe("Hashing", () => {
+   logSuite("Hashing");
    it("keccak256 returns a 32-byte hex digest for empty bytes", () => {
+     logTest("keccak256 returns a 32-byte hex digest for empty bytes", {});
      const out = qc.keccak256(new Uint8Array([]));
      assert.equal(typeof out, "string");
      assert.ok(out.startsWith("0x"));

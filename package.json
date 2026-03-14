@@ -36,12 +36,31 @@
     "test:security": "node --test \"test/security/**/*.test.js\"",
     "test:non-transactional": "node --test \"test/unit/**/*.test.js\" \"test/integration/**/*.test.js\" \"test/security/**/*.test.js\"",
     "test:e2e": "node --test --test-concurrency=1 \"test/e2e/*.test.js\"",
+    "test:generator-sdk": "node --test \"test/unit/generate-contract-cli.test.js\" \"test/unit/generator.test.js\" \"test/unit/generate-sdk-artifacts-json.test.js\" && node --test --test-concurrency=1 \"test/e2e/typed-generator.e2e.test.js\" \"test/e2e/simple-erc20.generated-sdks.e2e.test.js\" \"test/e2e/all-solidity-types.generated-sdks.e2e.test.js\"",
+    "test:ts:generator-sdk": "npx tsx --test \"test/unit/generate-contract-cli.test.ts\" \"test/unit/generator.test.ts\" \"test/unit/generate-sdk-artifacts-json.test.ts\" && npx tsx --test --test-concurrency=1 \"test/e2e/typed-generator.e2e.test.ts\" \"test/e2e/simple-erc20.generated-sdks.e2e.test.ts\" \"test/e2e/all-solidity-types.generated-sdks.e2e.test.ts\"",
+    "test:ts": "npx tsx --test \"test/unit/**/*.test.ts\" \"test/integration/**/*.test.ts\" \"test/security/**/*.test.ts\"",
+    "test:ts:unit": "npx tsx --test \"test/unit/**/*.test.ts\"",
+    "test:ts:integration": "npx tsx --test \"test/integration/**/*.test.ts\"",
+    "test:ts:security": "npx tsx --test \"test/security/**/*.test.ts\"",
+    "test:ts:e2e": "npx tsx --test --test-concurrency=1 \"test/e2e/*.test.ts\" \"test/e2e/*.e2e.test.ts\" \"test/e2e/*.dynamic.test.ts\"",
     "example": "node examples/example.js",
+    "example:ts": "npx tsx examples/example.ts",
     "example:provider": "node examples/example.js",
     "example:wallet": "node examples/wallet-offline.js",
+    "example:wallet:ts": "npx tsx examples/wallet-offline.ts",
     "example:contract:read": "node examples/read-operations.js",
+    "example:contract:read:ts": "npx tsx examples/read-operations.ts",
     "example:events": "node examples/events.js",
-    "build": "npx -p typescript tsc src/index.js --declaration --allowJs --emitDeclarationOnly"
+    "example:events:ts": "npx tsx examples/events.ts",
+    "example:offline-signing": "node examples/offline-signing.js",
+    "example:offline-signing:ts": "npx tsx examples/offline-signing.ts",
+    "example:generator-js": "node examples/example-generator-sdk-js.js",
+    "example:generator-js:ts": "npx tsx examples/example-generator-sdk-js.ts",
+    "example:generator-ts": "node examples/example-generator-sdk-ts.js",
+    "example:generator-ts:ts": "npx tsx examples/example-generator-sdk-ts.ts",
+    "examples": "node examples/example.js && node examples/wallet-offline.js && node examples/read-operations.js && node examples/events.js && node examples/example-generator-sdk-js.js && node examples/example-generator-sdk-ts.js",
+    "examples:ts": "npx tsx examples/example.ts && npx tsx examples/wallet-offline.ts && npx tsx examples/read-operations.ts && npx tsx examples/events.ts && npx tsx examples/example-generator-sdk-js.ts && npx tsx examples/example-generator-sdk-ts.ts",
+    "build": "npx -p typescript tsc -p tsconfig.build.json && node scripts/copy-declarations.js"
   },
   "repository": {
     "type": "git",
@@ -51,7 +70,6 @@
     "**"
   ],
   "keywords": [
-    "pqc",
     "cryptography",
     "quantum coins",
     "quantum coin",
@@ -67,9 +85,11 @@
   "bin": {
     "sdkgen": "./generate-sdk.js"
   },
+  "devDependencies": {
+    "tsx": "^4.19.0"
+  },
   "dependencies": {
-    "quantum-coin-pqc-js-sdk": "^1.0.5",
     "seed-words": "^1.0.2",
-    "quantum-coin-js-sdk": "file:../quantum-coin-js-sdk"
+    "quantum-coin-js-sdk": "1.0.31"
   }
 }

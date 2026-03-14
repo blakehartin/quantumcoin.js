@@ -10,9 +10,12 @@
  
  const { Initialize } = require("../../config");
  const qc = require("../../index");
+ const { logSuite, logTest } = require("../verbose-logger");
  
  describe("Contract", () => {
+   logSuite("Contract");
    it("_invoke treats last arg as overrides only when object-like (null is NOT overrides)", async () => {
+     logTest("_invoke treats last arg as overrides only when object-like (null is NOT overrides)", {});
      await Initialize(null);
      const addr = qc.Wallet.createRandom().address;
      const abi = [

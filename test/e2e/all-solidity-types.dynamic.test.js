@@ -17,7 +17,8 @@ const { execFileSync } = require("node:child_process");
 const { Initialize } = require("quantumcoin/config");
 const { getProvider, Wallet, Contract, ContractFactory, getCreateAddress } = require("quantumcoin");
 
-const { getRpcUrl, getChainId, getSolcPath, assertSolcExists } = require("./helpers");
+const { getRpcUrl, getChainId, getSolcPath, assertSolcExists, logE2eConfig } = require("./helpers");
+const { logSuite, logTest, logAddress, logTxn } = require("../verbose-logger");
 const {
   buildAllUints,
   buildAllInts,
@@ -48,11 +49,14 @@ function compileAllSolidityTypes({ solcPath, solPath }) {
 
 describe("AllSolidityTypes (dynamic Contract)", () => {
   it("deploys and roundtrips all methods", async (t) => {
+    logSuite("AllSolidityTypes (dynamic Contract)");
+    logTest("deploys and roundtrips all methods", {});
     const rpcUrl = getRpcUrl();
     if (!rpcUrl) {
       t.skip("QC_RPC_URL not provided");
       return;
     }
+    logE2eConfig();
     const chainId = getChainId();
     const solcPath = getSolcPath();
     assertSolcExists(solcPath);
@@ -64,6 +68,7 @@ describe("AllSolidityTypes (dynamic Contract)", () => {
     await Initialize(null);
     const provider = getProvider(rpcUrl, chainId);
     const wallet = Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE, provider);
+    logAddress("deployer", wallet.address);
 
     const { abi, bytecode } = compileAllSolidityTypes({ solcPath, solPath });
 
@@ -107,6 +112,7 @@ describe("AllSolidityTypes (dynamic Contract)", () => {
       deployNonce = await provider.getTransactionCount(wallet.address, "latest");
     }
     const expectedAddress = getCreateAddress({ from: wallet.address, nonce: deployNonce });
+    logAddress("expected_contract", expectedAddress);
 
     const deployTxReq = factory.getDeployTransaction(
       true,
@@ -131,6 +137,7 @@ describe("AllSolidityTypes (dynamic Contract)", () => {
     }
 
     const deployTx = await wallet.sendTransaction({ ...deployTxReq, nonce: deployNonce, gasLimit, value: 0n });
+    logTxn(deployTx.hash, { type: "deploy", expectedAddress });
     assert.ok(deployTx && deployTx.hash);
     await deployTx.wait(1, 600_000);
 

@@ -1,19 +1,21 @@
-export type BytesLike = import("../types").BytesLike;
-export type AddressLike = import("../types").AddressLike;
-export type BigNumberish = import("../types").BigNumberish;
+export type BytesLike = import("../utils/encoding").BytesLike;
 export type TransactionRequest = {
-    to?: AddressLike | undefined;
-    from?: AddressLike | undefined;
-    value?: BigNumberish | undefined;
-    data?: BytesLike | undefined;
-    gasLimit?: BigNumberish | undefined;
-    gasPrice?: BigNumberish | undefined;
+    to?: string | undefined;
+    from?: string | undefined;
+    value?: (bigint | string | number) | undefined;
+    data?: string | undefined;
+    gasLimit?: (bigint | string | number) | undefined;
+    gasPrice?: (bigint | string | number) | undefined;
     nonce?: number | undefined;
     chainId?: number | undefined;
     /**
      * Optional remark field (hex, max 32 bytes)
      */
     remarks?: string | undefined;
+    /**
+     * Optional signing context (0, 1, 2, or null). Passed to SDK TransactionSigningRequest; default null.
+     */
+    signingContext?: (number | null) | undefined;
 };
 export type Filter = {
     address?: (string | string[]) | undefined;
@@ -58,13 +60,13 @@ export class AbstractProvider extends Provider {
      * @param {string} address
      * @returns {Promise<bigint>}
      */
-    getBalance(address: AddressLike): Promise<bigint>;
+    getBalance(address: string): Promise<bigint>;
     /**
      * @param {string} address
      * @param {string=} blockTag
      * @returns {Promise<number>}
      */
-    getTransactionCount(address: AddressLike, blockTag?: string | undefined): Promise<number>;
+    getTransactionCount(address: string, blockTag?: string | undefined): Promise<number>;
     /**
      * Broadcasts a signed transaction.
      * @param {TransactionRequest|string} tx
@@ -73,7 +75,8 @@ export class AbstractProvider extends Provider {
     sendTransaction(tx: TransactionRequest | string): Promise<TransactionResponse>;
     /**
      * Broadcast a signed raw transaction.
-     * Alias of sendTransaction(rawTx) for clarity in offline signing flows.
+     * Alias of sendTransaction(rawTx) for clarity when doing offline signing flows.
+     *
      * @param {string} rawTx
      * @returns {Promise<TransactionResponse>}
      */
@@ -96,14 +99,14 @@ export class AbstractProvider extends Provider {
      * @param {string=} blockTag
      * @returns {Promise<string>}
      */
-    getCode(address: AddressLike, blockTag?: string | undefined): Promise<string>;
+    getCode(address: string, blockTag?: string | undefined): Promise<string>;
     /**
      * @param {string} address
      * @param {bigint} position
      * @param {string=} blockTag
      * @returns {Promise<string>}
      */
-    getStorageAt(address: AddressLike, position: bigint, blockTag?: string | undefined): Promise<string>;
+    getStorageAt(address: string, position: bigint, blockTag?: string | undefined): Promise<string>;
     /**
      * @param {Filter} filter
      * @returns {Promise<Log[]>}
@@ -149,6 +152,7 @@ export class TransactionResponse {
     gasPrice: any;
     chainId: number;
     blockNumber: number;
+    remarks: string;
     /**
      * Wait for confirmations.
      * @param {number=} confirmations

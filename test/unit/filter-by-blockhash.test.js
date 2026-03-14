@@ -9,9 +9,12 @@ const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
 
 const qc = require("../../index");
+const { logSuite, logTest } = require("../verbose-logger");
 
 describe("FilterByBlockHash", () => {
+  logSuite("FilterByBlockHash");
   it("validates blockHash and normalizes it", () => {
+    logTest("validates blockHash and normalizes it", {});
     assert.throws(() => new qc.FilterByBlockHash(null), (e) => e && e.code === "INVALID_ARGUMENT");
     assert.throws(() => new qc.FilterByBlockHash("0x1234"), (e) => e && e.code === "INVALID_ARGUMENT"); // wrong length
 

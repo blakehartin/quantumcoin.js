@@ -7,7 +7,7 @@ test/e2e/generated-sdks/**
 **/*.save
 **/*.swp
 **/*.tgz
-dist/*.gz
+dist/
 .idea
 .vscode
 **/.DS_Store

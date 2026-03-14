@@ -11,9 +11,12 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
+const { logSuite, logTest } = require("../verbose-logger");
 
 describe("generate-sdk.js --artifacts-json", () => {
+  logSuite("generate-sdk.js --artifacts-json");
   it("generates typed files for multiple ABI+BIN pairs (no package scaffold)", () => {
+    logTest("generates typed files for multiple ABI+BIN pairs (no package scaffold)", {});
     const repoRoot = path.resolve(__dirname, "..", "..");
     const cli = path.join(repoRoot, "generate-sdk.js");
 

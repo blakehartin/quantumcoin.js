@@ -9,9 +9,12 @@
  const assert = require("node:assert/strict");
  
  const qc = require("../../index");
+ const { logSuite, logTest } = require("../verbose-logger");
  
  describe("Encoding", () => {
+   logSuite("Encoding");
    it("toHex/hexlify normalize strings and bytes", () => {
+     logTest("toHex/hexlify normalize strings and bytes", {});
      assert.equal(qc.toHex("0x0A"), "0x0a");
      assert.equal(qc.hexlify(new Uint8Array([0x0a])), "0x0a");
    });

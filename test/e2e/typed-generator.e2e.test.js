@@ -18,7 +18,8 @@ const path = require("node:path");
 const os = require("node:os");
 const { execFileSync, spawnSync } = require("node:child_process");
 
-const { getRpcUrl, getChainId, getSolcPath, assertSolcExists } = require("./helpers");
+const { getRpcUrl, getChainId, getSolcPath, assertSolcExists, logE2eConfig } = require("./helpers");
+const { logSuite, logTest } = require("../verbose-logger");
 
 function getNpmCmd() {
   return process.platform === "win32" ? "npm.cmd" : "npm";
@@ -63,12 +64,14 @@ function compileSolidity({ solcPath, solPath, contractName }) {
 
 describe("typed contract generator package e2e", () => {
   it("generates a package and runs its transactional tests", async (t) => {
+    logSuite("typed contract generator package e2e");
+    logTest("generates a package and runs its transactional tests", {});
     const rpcUrl = getRpcUrl();
     if (!rpcUrl) {
       t.skip("QC_RPC_URL not provided");
       return;
     }
-
+    logE2eConfig();
     const chainId = getChainId();
     const solcPath = getSolcPath();
     assertSolcExists(solcPath);

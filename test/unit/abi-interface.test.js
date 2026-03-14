@@ -10,9 +10,12 @@
  
  const { Initialize } = require("../../config");
  const qc = require("../../index");
+ const { logSuite, logTest } = require("../verbose-logger");
  
  describe("ABI fragments", () => {
+   logSuite("ABI fragments");
    it("Fragment defaults inputs/outputs and format ignores optional format param", () => {
+     logTest("Fragment defaults inputs/outputs and format ignores optional format param", {});
      const f = new qc.Fragment({ type: "function", name: "foo" });
      assert.deepEqual(f.inputs, []);
      assert.deepEqual(f.outputs, []);
@@ -23,7 +26,9 @@
  });
  
  describe("Interface", () => {
+   logSuite("Interface");
    it("constructor accepts null ABI and format ignores optional format param", () => {
+     logTest("constructor accepts null ABI and format ignores optional format param", {});
      const i1 = new qc.Interface(null);
      assert.equal(i1.formatJson(), "[]");
      assert.equal(i1.format(), "[]");

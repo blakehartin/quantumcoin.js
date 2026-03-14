@@ -9,9 +9,12 @@ const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
+const { logSuite, logTest } = require("../verbose-logger");
 
 describe("generate-sdk.js CLI", () => {
+  logSuite("generate-sdk.js CLI");
   it("prints detailed help when invoked with no args", () => {
+    logTest("prints detailed help when invoked with no args", {});
     const repoRoot = path.resolve(__dirname, "..", "..");
     const cli = path.join(repoRoot, "generate-sdk.js");
 

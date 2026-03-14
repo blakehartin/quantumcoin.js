@@ -9,9 +9,12 @@
  const assert = require("node:assert/strict");
  
  const qc = require("../../index");
+ const { logSuite, logTest } = require("../verbose-logger");
  
  describe("Errors", () => {
+   logSuite("Errors");
    it("makeError sets code and shortMessage (info omitted vs null)", () => {
+     logTest("makeError sets code and shortMessage (info omitted vs null)", {});
      const e1 = qc.makeError("boom", "UNKNOWN_ERROR");
      const e2 = qc.makeError("boom", "UNKNOWN_ERROR", null);
  
