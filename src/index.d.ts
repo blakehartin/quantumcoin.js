@@ -23,6 +23,7 @@ declare const _exports: {
     encodeRlp(value: any): string;
     decodeRlp(data: string): any;
     keccak256(data: string | Uint8Array): string;
+    hashMessage(message: string | Uint8Array): string;
     sha256(data: string | Uint8Array): string;
     sha512(data: string | Uint8Array): string;
     ripemd160(data: string | Uint8Array): string;

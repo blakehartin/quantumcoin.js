@@ -77,6 +77,12 @@ const EtherSymbol = "Ξ";
  */
 const N = 0n;
 
+/**
+ * EIP-191 personal sign message prefix (ethers.js compatible).
+ * @type {string}
+ */
+const MessagePrefix = "\x19Ethereum Signed Message:\n";
+
 module.exports = {
   version,
   ZeroAddress,
@@ -90,5 +96,6 @@ module.exports = {
   WeiPerEther,
   EtherSymbol,
   N,
+  MessagePrefix,
 };
 

@@ -7,7 +7,9 @@
  */
 
 const crypto = require("crypto");
+const { MessagePrefix } = require("../constants");
 const { arrayify, bytesToHex, utf8ToBytes } = require("../internal/hex");
+const { concat } = require("./encoding");
 
 const _MASK64 = (1n << 64n) - 1n;
 
@@ -191,6 +193,18 @@ function ripemd160(data) {
 }
 
 /**
+ * EIP-191 personal-sign message digest (ethers.js hashMessage pattern).
+ * Prefixes message with MessagePrefix and decimal length, then keccak256.
+ * If message is a string, it is converted to UTF-8 bytes first.
+ * @param {string|Uint8Array} message
+ * @returns {string} Hex digest
+ */
+function hashMessage(message) {
+  const msgBytes = typeof message === "string" ? utf8ToBytes(message) : arrayify(message);
+  return keccak256(concat([utf8ToBytes(MessagePrefix), utf8ToBytes(String(msgBytes.length)), msgBytes]));
+}
+
+/**
  * ethers-style id(text) => keccak256(utf8Bytes(text))
  * @param {string} text
  * @returns {string}
@@ -285,6 +299,7 @@ function scryptSync(password, salt, N, r, p, dkLen) {
 
 module.exports = {
   keccak256,
+  hashMessage,
   sha256,
   sha512,
   ripemd160,

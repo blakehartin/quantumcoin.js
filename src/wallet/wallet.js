@@ -11,8 +11,8 @@
 const qcsdk = require("quantum-coin-js-sdk");
 const { JsonRpcProvider } = require("../providers/json-rpc-provider");
 const { assertArgument, makeError } = require("../errors");
-const { arrayify, bytesToHex, hexToBytes, isHexString, normalizeHex, utf8ToBytes } = require("../internal/hex");
-const { sha256 } = require("../utils/hashing");
+const { arrayify, bytesToHex, hexToBytes, isHexString, normalizeHex } = require("../internal/hex");
+const { hashMessage } = require("../utils/hashing");
 const { getAddress } = require("../utils/address");
 const { WeiPerEther } = require("../constants");
 
@@ -95,8 +95,7 @@ class BaseWallet extends AbstractSigner {
    */
   signMessageSync(message) {
     _requireInitialized();
-    const msgBytes = typeof message === "string" ? utf8ToBytes(message) : arrayify(message);
-    const digestHex = sha256(msgBytes);
+    const digestHex = hashMessage(message);
     const digest = hexToBytes(digestHex);
     const signResult = qcsdk.sign(this.signingKey.privateKeyBytes, digest, null);
     if (signResult.resultCode !== 0) {
