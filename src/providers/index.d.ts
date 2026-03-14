@@ -1,4 +1,5 @@
 declare const _exports: {
+    getProvider(endpoint?: string | undefined, chainId?: number | undefined): import("./provider").AbstractProvider;
     WebSocketProvider: typeof import("./extra-providers").WebSocketProvider;
     IpcSocketProvider: typeof import("./extra-providers").IpcSocketProvider;
     BrowserProvider: typeof import("./extra-providers").BrowserProvider;

@@ -91,7 +91,11 @@ node generate-sdk.js --abi path/to/abi.json --bin path/to/bytecode.bin
 
 If installed as a package, you can also run:
 
-`npx sdkgen --abi ... --bin ...`
+```bash
+npx sdkgen --abi path/to/abi.json --bin path/to/bytecode.bin --out ./generated --name MyContract --non-interactive
+```
+
+For more options (Solidity sources, artifacts JSON, package scaffolding), see [README-SDK.md](./README-SDK.md#typed-sdk-generator-generate-sdkjs).
 
 ### Generator typing model
 
@@ -122,7 +126,18 @@ npm run example
 npm run example:wallet
 npm run example:contract:read
 npm run example:events
+# Run all examples (including SDK generator JS/TS)
+npm run examples
 ```
+
+To try the typed SDK generator (generates a full package from Solidity or ABI+BIN):
+
+```bash
+node examples/example-generator-sdk-js.js   # JavaScript output
+node examples/example-generator-sdk-ts.js   # TypeScript output
+```
+
+Requires `solc` on `QC_SOLC_PATH` or `SOLC_PATH`, or at default `c:\solc\solc.exe`. See [README-SDK.md](./README-SDK.md) for all generator options (`--artifacts-json`, `--sol`, `--create-package`, etc.).
 
 ## Tests
 

@@ -8,7 +8,7 @@
 const qcsdk = require("quantum-coin-js-sdk");
 const { assertArgument, makeError } = require("../errors");
 const { arrayify, bytesToHex, hexToBytes, isHexString, normalizeHex } = require("../internal/hex");
-const { sha256 } = require("./hashing");
+const { hashMessage } = require("./hashing");
 
 function _requireInitialized() {
   // The spec requires Initialize() to be called before using the SDK.
@@ -128,8 +128,7 @@ function computeAddress(key) {
 }
 
 function _digestMessage(message) {
-  const bytes = typeof message === "string" ? new TextEncoder().encode(message) : arrayify(message);
-  const digestHex = sha256(bytes);
+  const digestHex = hashMessage(message);
   const digest = Array.from(hexToBytes(digestHex));
   assertArgument(digest.length === 32, "invalid digest length", "digest", digest.length);
   return digest;

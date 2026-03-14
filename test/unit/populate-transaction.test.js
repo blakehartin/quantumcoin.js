@@ -10,9 +10,12 @@ const assert = require("node:assert/strict");
 
 const { Initialize } = require("../../config");
 const qc = require("../../index");
+const { logSuite, logTest } = require("../verbose-logger");
 
 describe("populateTransaction + sendRawTransaction", () => {
+  logSuite("populateTransaction + sendRawTransaction");
   it("contract.populateTransaction.<fn> builds tx request without provider/signer", async () => {
+    logTest("contract.populateTransaction.<fn> builds tx request without provider/signer", {});
     await Initialize(null);
 
     const abi = [

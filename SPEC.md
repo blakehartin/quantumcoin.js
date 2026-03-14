@@ -384,6 +384,7 @@ Returns prefetched transaction objects (if available).
 - `nonce`: number - Transaction nonce
 - `chainId`: number - Chain ID
 - `remarks`: string | null - Optional hex string (including 0x) that represents a remark/comment. Maximum 32 bytes length (in bytes). Warning: do not store any sensitive information in this field as it will be public on the blockchain.
+- `signingContext`: number | null - Optional signing context (0, 1, 2, or null). Passed to quantum-coin-js-sdk's TransactionSigningRequest; default null. When null, the scheme is derived from the wallet key type.
 - `type?: number` - Transaction type
 - `accessList?: Array<{address: string, storageKeys: string[]}>` - Access list (EIP-2930)
 
@@ -2982,6 +2983,7 @@ All implementations must use quantum-coin-js-sdk for:
 11. **Seed Words Wallet Creation**: Use `openWalletFromSeedWords()` from quantum-coin-js-sdk in `Wallet.fromPhrase()` static method (48 words required)
 12. **RPC Calls**: Use quantum-coin-js-sdk RPC functions (getAccountDetails, getTransactionDetails, etc.)
 13. **Transaction Remarks**: The `remarks` field is passed through to quantum-coin-js-sdk's TransactionSigningRequest.remarks field (optional, max 32 bytes, hex string with 0x prefix)
+14. **Transaction Signing Context**: The `signingContext` field is passed through to quantum-coin-js-sdk's TransactionSigningRequest.signingContext (optional, number | null; default null). Values 0, 1, 2 select the cryptographic scheme; null lets the SDK derive from wallet key type.
 
 **SDK Source Reference (for implementers)**:
 - The `quantum-coin-js-sdk` code can be found under `node_modules/quantum-coin-js-sdk/`.
@@ -3022,7 +3024,7 @@ Use only built-in JavaScript/Node.js libraries:
 - Implement proper transaction confirmation waiting
 - Support `remarks` field in transactions (optional, max 32 bytes, public on blockchain)
 - Validate remarks field: must be hex string with 0x prefix, max 32 bytes when decoded
-- Use quantum-coin-js-sdk's `signRawTransaction()` which accepts `remarks` in TransactionSigningRequest
+- Use quantum-coin-js-sdk's `signRawTransaction()` which accepts `remarks` and `signingContext` in TransactionSigningRequest
 
 ### 10.7 ABI Handling
 

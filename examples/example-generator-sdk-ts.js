@@ -1,8 +1,9 @@
 /**
  * SDK Generator example (TypeScript output)
+ * Run with VERBOSE=1 for step-by-step logging.
  *
  * What this does:
- * - Compiles `SimpleIERC20.sol` with solc at `c:\solc\solc.exe`
+ * - Compiles `SimpleIERC20.sol` with solc (path from QC_SOLC_PATH or SOLC_PATH env, else c:\solc\solc.exe)
  * - Writes `sdk-generator-erc20.inline.json` containing inline ABI+BIN
  * - Runs the repo's `generate-sdk.js` using `--artifacts-json --lang ts`
  * - Generates a full typed package scaffold into `examples/example-generated-sdk-ts`
@@ -14,6 +15,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { execFileSync, spawnSync } = require("node:child_process");
+const { logExample } = require("../test/verbose-logger");
 
 function compileSimpleErc20({ solcPath, solPath }) {
   const out = execFileSync(solcPath, ["--optimize", "--combined-json", "abi,bin", solPath], { encoding: "utf8" });
@@ -33,11 +35,12 @@ function compileSimpleErc20({ solcPath, solPath }) {
 }
 
 function main() {
+  const solcPath = process.env.QC_SOLC_PATH || process.env.SOLC_PATH || "c:\\solc\\solc.exe";
+  logExample("example-generator-sdk-ts.js", "starting", { solcPath });
   const repoRoot = path.resolve(__dirname, "..");
-  const solcPath = "c:\\solc\\solc.exe";
 
   if (!fs.existsSync(solcPath)) {
-    throw new Error(`solc not found at ${solcPath}. Install solc there or update examples/example-generator-sdk-ts.js.`);
+    throw new Error(`solc not found at ${solcPath}. Set QC_SOLC_PATH or SOLC_PATH to your solc executable, or install solc at the default path.`);
   }
 
   const solPath = path.join(__dirname, "SimpleIERC20.sol");
@@ -45,6 +48,7 @@ function main() {
 
   // 1) Compile and write inline artifacts JSON (ABI array + BIN string).
   const artifact = compileSimpleErc20({ solcPath, solPath });
+  logExample("example-generator-sdk-ts.js", "compile SimpleERC20", { contractName: artifact.name });
   fs.writeFileSync(artifactsJsonPath, JSON.stringify([artifact], null, 2) + "\n", "utf8");
 
   // 2) Generate a new package into examples/example-generated-sdk-ts (delete old one first).
@@ -54,6 +58,7 @@ function main() {
   if (fs.existsSync(pkgRoot)) {
     fs.rmSync(pkgRoot, { recursive: true, force: true });
   }
+  logExample("example-generator-sdk-ts.js", "generate package", { pkgName, pkgRoot });
 
   const generatorCli = path.join(repoRoot, "generate-sdk.js");
   const res = spawnSync(

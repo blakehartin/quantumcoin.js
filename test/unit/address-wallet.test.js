@@ -10,8 +10,15 @@ const assert = require("node:assert/strict");
 
 const { Initialize } = require("../../config");
 const qc = require("../../index");
+const { logSuite, logTest, logAddress } = require("../verbose-logger");
+const {
+  TEST_ENCRYPTED_JSON_48,
+  TEST_ENCRYPTED_JSON_32,
+  TEST_ENCRYPTED_JSON_36,
+} = require("./fixtures/encrypted-keystores-48-32-36");
 
 describe("Address + Wallet (offline)", () => {
+  logSuite("Address + Wallet (offline)");
   // ---------------------------------------------------------------------------
   // Hardcoded test wallet (from upstream quantum-coin-js-sdk examples)
   // WARNING: test-only wallet; never use for real funds.
@@ -33,17 +40,49 @@ describe("Address + Wallet (offline)", () => {
   ];
   const TEST_SEED_ADDRESS = "0x3Ce22c0e2714196734E42B0D4D5AD11284260502A560e46c2Cd857391564142F".toLowerCase();
 
+  // First 32 and 36 words from TEST_SEED_WORDS (addresses from Wallet.fromPhrase run)
+  const TEST_SEED_WORDS_32 = TEST_SEED_WORDS.slice(0, 32);
+  const TEST_SEED_WORDS_36 = TEST_SEED_WORDS.slice(0, 36);
+  const TEST_SEED_ADDRESS_32 = "0x38b12df2d4762a04a183f936c47747a1f13d0b0ba72066b43b4b6d7f776e9e25";
+  const TEST_SEED_ADDRESS_36 = "0x030e264c853bd859c53fae3ad6ef0e011dc799685e2b05d5efa7ac50f10ca075";
+  const PASSPHRASE_PHRASE = "mySecurePassword123";
+
   it("validates and normalizes 32-byte addresses", async () => {
+    logTest("validates and normalizes 32-byte addresses", {});
     await Initialize(null);
     const wallet = qc.Wallet.createRandom();
+    logAddress("wallet", wallet.address);
     assert.equal(qc.isAddress(wallet.address), true);
     assert.equal(qc.getAddress(wallet.address), wallet.address.toLowerCase());
   });
 
   it("fromEncryptedJsonSync opens a known wallet (hardcoded)", async () => {
+    logTest("fromEncryptedJsonSync opens a known wallet (hardcoded)", {});
     await Initialize(null);
     const wallet = qc.Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE);
+    logAddress("wallet", wallet.address);
     assert.equal(wallet.address, TEST_WALLET_ADDRESS);
+    assert.equal(qc.isAddress(wallet.address), true);
+  });
+
+  it("fromEncryptedJsonSync opens 48-word phrase wallet (hardcoded encrypted JSON)", async () => {
+    await Initialize(null);
+    const wallet = qc.Wallet.fromEncryptedJsonSync(TEST_ENCRYPTED_JSON_48, PASSPHRASE_PHRASE);
+    assert.equal(wallet.address, TEST_SEED_ADDRESS);
+    assert.equal(qc.isAddress(wallet.address), true);
+  });
+
+  it("fromEncryptedJsonSync opens 32-word phrase wallet (hardcoded encrypted JSON)", async () => {
+    await Initialize(null);
+    const wallet = qc.Wallet.fromEncryptedJsonSync(TEST_ENCRYPTED_JSON_32, PASSPHRASE_PHRASE);
+    assert.equal(wallet.address, TEST_SEED_ADDRESS_32);
+    assert.equal(qc.isAddress(wallet.address), true);
+  });
+
+  it("fromEncryptedJsonSync opens 36-word phrase wallet (hardcoded encrypted JSON)", async () => {
+    await Initialize(null);
+    const wallet = qc.Wallet.fromEncryptedJsonSync(TEST_ENCRYPTED_JSON_36, PASSPHRASE_PHRASE);
+    assert.equal(wallet.address, TEST_SEED_ADDRESS_36);
     assert.equal(qc.isAddress(wallet.address), true);
   });
 
@@ -86,10 +125,33 @@ describe("Address + Wallet (offline)", () => {
     assert.equal(w3.address, TEST_SEED_ADDRESS);
   });
 
-  it("fromPhrase rejects non-48-word phrases", async () => {
+  it("fromPhrase supports 32-word seed phrase", async () => {
     await Initialize(null);
-    assert.throws(() => qc.Wallet.fromPhrase("one two three"), /48 words/i);
-    assert.throws(() => qc.Wallet.fromPhrase(new Array(47).fill("word")), /48 words/i);
+    assert.equal(TEST_SEED_WORDS_32.length, 32);
+
+    const w1 = qc.Wallet.fromPhrase(TEST_SEED_WORDS_32);
+    const w2 = qc.Wallet.fromPhrase(TEST_SEED_WORDS_32.join(" "));
+
+    assert.equal(w1.address, TEST_SEED_ADDRESS_32);
+    assert.equal(w2.address, TEST_SEED_ADDRESS_32);
+  });
+
+  it("fromPhrase supports 36-word seed phrase", async () => {
+    await Initialize(null);
+    assert.equal(TEST_SEED_WORDS_36.length, 36);
+
+    const w1 = qc.Wallet.fromPhrase(TEST_SEED_WORDS_36);
+    const w2 = qc.Wallet.fromPhrase(TEST_SEED_WORDS_36.join(" "));
+
+    assert.equal(w1.address, TEST_SEED_ADDRESS_36);
+    assert.equal(w2.address, TEST_SEED_ADDRESS_36);
+  });
+
+  it("fromPhrase rejects invalid phrase lengths (must be 32, 36, or 48 words)", async () => {
+    await Initialize(null);
+    assert.throws(() => qc.Wallet.fromPhrase("one two three"), /32, 36, or 48 words/i);
+    assert.throws(() => qc.Wallet.fromPhrase(new Array(47).fill("word")), /32, 36, or 48 words/i);
+    assert.throws(() => qc.Wallet.fromPhrase(new Array(12).fill("word")), /32, 36, or 48 words/i);
   });
 
   it("signMessageSync + verifyMessage roundtrip (known wallet)", async () => {
@@ -100,6 +162,42 @@ describe("Address + Wallet (offline)", () => {
     assert.ok(sig.startsWith("0x"));
     const recovered = qc.verifyMessage("Hello, QuantumCoin!", sig);
     assert.equal(recovered, wallet.address.toLowerCase());
+  });
+
+  it("signMessageSync returns combined signature hex and verifyMessage roundtrip (fromPhrase wallet)", async () => {
+    await Initialize(null);
+    const wallet = qc.Wallet.fromPhrase(TEST_SEED_WORDS);
+    const msg = "test message";
+    const sig = wallet.signMessageSync(msg);
+    assert.equal(typeof sig, "string");
+    assert.ok(sig.startsWith("0x"));
+    assert.ok(sig.length > 4);
+    const recovered = qc.verifyMessage(msg, sig);
+    assert.equal(recovered, wallet.address.toLowerCase());
+  });
+
+  it("signMessageSync + verifyMessage roundtrip (32-word phrase wallet)", async () => {
+    await Initialize(null);
+    const wallet = qc.Wallet.fromPhrase(TEST_SEED_WORDS_32);
+    const msg = "hello 32";
+    const sig = wallet.signMessageSync(msg);
+    assert.equal(typeof sig, "string");
+    assert.ok(sig.startsWith("0x"));
+    const recovered = qc.verifyMessage(msg, sig);
+    assert.equal(recovered, wallet.address.toLowerCase());
+    assert.equal(recovered, TEST_SEED_ADDRESS_32.toLowerCase());
+  });
+
+  it("signMessageSync + verifyMessage roundtrip (36-word phrase wallet)", async () => {
+    await Initialize(null);
+    const wallet = qc.Wallet.fromPhrase(TEST_SEED_WORDS_36);
+    const msg = "hello 36";
+    const sig = wallet.signMessageSync(msg);
+    assert.equal(typeof sig, "string");
+    assert.ok(sig.startsWith("0x"));
+    const recovered = qc.verifyMessage(msg, sig);
+    assert.equal(recovered, wallet.address.toLowerCase());
+    assert.equal(recovered, TEST_SEED_ADDRESS_36.toLowerCase());
   });
 
   it("signTransaction works offline and returns raw tx hex", async () => {

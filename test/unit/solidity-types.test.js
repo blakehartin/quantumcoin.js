@@ -9,9 +9,12 @@ const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const { logSuite, logTest } = require("../verbose-logger");
 
 describe("core solidity types", () => {
+  logSuite("core solidity types");
   it("has src/types/index.d.ts with expected exports", () => {
+    logTest("has src/types/index.d.ts with expected exports", {});
     const repoRoot = path.resolve(__dirname, "..", "..");
     const dts = path.join(repoRoot, "src", "types", "index.d.ts");
     assert.ok(fs.existsSync(dts), "missing src/types/index.d.ts");

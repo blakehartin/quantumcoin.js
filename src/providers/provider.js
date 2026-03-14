@@ -24,6 +24,7 @@ const { normalizeHex, isHexString } = require("../internal/hex");
  * @property {number=} nonce
  * @property {number=} chainId
  * @property {string=} remarks Optional remark field (hex, max 32 bytes)
+ * @property {number|null=} signingContext Optional signing context (0, 1, 2, or null). Passed to SDK TransactionSigningRequest; default null.
  */
 
 /**
@@ -45,6 +46,20 @@ function _hexToBigInt(hex) {
 
 function _hexToNumber(hex) {
   return Number(_hexToBigInt(hex));
+}
+  
+/**
+ * Convert block tag (number or string) to the format eth_getLogs expects (hex with 0x or "latest"/"pending"/"earliest").
+ * @param {number|string|undefined} blockTag
+ * @returns {string|undefined}
+ */
+function _blockTagToHex(blockTag) {
+  if (blockTag === undefined || blockTag === null) return undefined;
+  const s = String(blockTag).toLowerCase();
+  if (s === "latest" || s === "pending" || s === "earliest") return s;
+  const n = typeof blockTag === "number" ? blockTag : Number(blockTag);
+  if (!Number.isInteger(n) || n < 0) return undefined;
+  return normalizeHex("0x" + n.toString(16));
 }
 
 /**
@@ -127,6 +142,7 @@ class TransactionResponse {
     this.gasPrice = tx.gasPrice != null ? _hexToBigInt(tx.gasPrice) : null;
     this.chainId = tx.chainId != null ? _hexToNumber(tx.chainId) : null;
     this.blockNumber = tx.blockNumber != null ? _hexToNumber(tx.blockNumber) : null;
+    this.remarks = tx.remarks != null ? normalizeHex(tx.remarks) : null;
   }
 
   /**
@@ -355,7 +371,12 @@ class AbstractProvider extends Provider {
    * @returns {Promise<Log[]>}
    */
   async getLogs(filter) {
-    const logs = await this._perform("eth_getLogs", [filter]);
+    const fromBlock = _blockTagToHex(filter.fromBlock);
+    const toBlock = _blockTagToHex(filter.toBlock);
+    const normalized = { ...filter };
+    if (fromBlock !== undefined) normalized.fromBlock = fromBlock;
+    if (toBlock !== undefined) normalized.toBlock = toBlock;
+    const logs = await this._perform("eth_getLogs", [normalized]);
     return (logs || []).map((l) => new Log(l, this));
   }
 }

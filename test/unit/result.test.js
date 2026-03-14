@@ -9,9 +9,12 @@
  const assert = require("node:assert/strict");
  
  const qc = require("../../index");
+ const { logSuite, logTest } = require("../verbose-logger");
  
  describe("Result", () => {
+   logSuite("Result");
    it("constructor supports items omitted vs provided and keys omitted vs null", () => {
+     logTest("constructor supports items omitted vs provided and keys omitted vs null", {});
      const r1 = new qc.Result();
      const r2 = new qc.Result(undefined, undefined);
      const r3 = new qc.Result([], null);

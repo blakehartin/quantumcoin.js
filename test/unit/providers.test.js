@@ -3,15 +3,19 @@
  * @blockchainRequired false
  * @transactional false
  * @description Provider helpers, wrappers, defaults, and extra providers
+ * Run with VERBOSE=1 for test names.
  */
  
  const { describe, it } = require("node:test");
  const assert = require("node:assert/strict");
  
  const qc = require("../../index");
+ const { logSuite, logTest } = require("../verbose-logger");
  
  describe("JsonRpcProvider", () => {
+   logSuite("JsonRpcProvider");
    it("defaults url/chainId when omitted vs null (no Initialize required)", () => {
+     logTest("defaults url/chainId when omitted vs null (no Initialize required)", {});
      const p1 = new qc.JsonRpcProvider();
      const p2 = new qc.JsonRpcProvider(null, null);
  
@@ -24,6 +28,7 @@
    });
  
    it("_perform defaults params when omitted vs null", async (t) => {
+     logTest("_perform defaults params when omitted vs null", {});
      if (typeof fetch !== "function") {
        t.skip("global fetch not available");
        return;
@@ -56,7 +61,9 @@
  });
  
  describe("AbstractProvider defaults", () => {
+   logSuite("AbstractProvider defaults");
    it("getTransactionCount/call/getCode default blockTag when omitted vs null", async () => {
+     logTest("getTransactionCount/call/getCode default blockTag when omitted vs null", {});
      class P extends qc.AbstractProvider {
        constructor() {
          super();
@@ -86,7 +93,9 @@
  });
  
  describe("TransactionResponse.wait", () => {
+   logSuite("TransactionResponse.wait");
    it("uses default confirmations when omitted vs null", async () => {
+     logTest("uses default confirmations when omitted vs null", {});
      const fakeProvider = {
        getTransactionReceipt: async () => ({ blockNumber: 1 }),
        getBlockNumber: async () => 1,
@@ -99,13 +108,56 @@
    });
  
    it("throws if provider missing", async () => {
+     logTest("throws if provider missing", {});
      const tx = new qc.TransactionResponse({ hash: "0x" + "11".repeat(32) }, null);
      await assert.rejects(() => tx.wait(), (e) => e && e.code === "UNKNOWN_ERROR" && /missing provider/i.test(e.message));
    });
  });
  
- describe("Extra providers", () => {
+ describe("getProvider", () => {
+  logSuite("getProvider");
+  it("returns JsonRpcProvider for http/https URLs", () => {
+    logTest("returns JsonRpcProvider for http/https URLs", {});
+    const p1 = qc.getProvider("https://public.rpc.quantumcoinapi.com", 123123);
+    const p2 = qc.getProvider("http://localhost:8545");
+    assert.ok(p1 instanceof qc.JsonRpcProvider);
+    assert.ok(p2 instanceof qc.JsonRpcProvider);
+    assert.equal(p1.url, "https://public.rpc.quantumcoinapi.com");
+    assert.equal(p1.chainId, 123123);
+  });
+
+  it("returns WebSocketProvider for ws/wss URLs", () => {
+    logTest("returns WebSocketProvider for ws/wss URLs", {});
+    const p1 = qc.getProvider("ws://127.0.0.1:8546");
+    const p2 = qc.getProvider("wss://example.com/ws", 1);
+    assert.ok(p1 instanceof qc.WebSocketProvider);
+    assert.ok(p2 instanceof qc.WebSocketProvider);
+    assert.equal(p1.url, "ws://127.0.0.1:8546");
+    assert.equal(p2.chainId, 1);
+  });
+
+  it("returns IpcSocketProvider for IPC paths", () => {
+    logTest("returns IpcSocketProvider for IPC paths", {});
+    const p = qc.getProvider("\\\\.\\pipe\\geth.ipc");
+    assert.ok(p instanceof qc.IpcSocketProvider);
+    assert.equal(p.path, "\\\\.\\pipe\\geth.ipc");
+  });
+
+  it("returns JsonRpcProvider with default url/chainId when endpoint omitted or empty", () => {
+    logTest("returns JsonRpcProvider with default url/chainId when endpoint omitted or empty", {});
+    const p1 = qc.getProvider();
+    const p2 = qc.getProvider("");
+    assert.ok(p1 instanceof qc.JsonRpcProvider);
+    assert.ok(p2 instanceof qc.JsonRpcProvider);
+    assert.ok(p1.url.length > 0);
+    assert.equal(p1.chainId, 123123);
+  });
+});
+
+describe("Extra providers", () => {
+  logSuite("Extra providers");
   it("BrowserProvider requires an EIP-1193 provider with request()", () => {
+     logTest("BrowserProvider requires an EIP-1193 provider with request()", {});
      assert.throws(() => new qc.BrowserProvider(null), (e) => e && e.code === "INVALID_ARGUMENT");
      assert.throws(() => new qc.BrowserProvider({}), (e) => e && e.code === "INVALID_ARGUMENT");
      const p = new qc.BrowserProvider({ request: async () => null });
@@ -113,18 +165,21 @@
    });
  
  it("WebSocketProvider requires a url and stores it", () => {
+   logTest("WebSocketProvider requires a url and stores it", {});
    assert.throws(() => new qc.WebSocketProvider(), (e) => e && e.code === "INVALID_ARGUMENT");
    const p = new qc.WebSocketProvider("ws://127.0.0.1:8546 ");
    assert.equal(p.url, "ws://127.0.0.1:8546");
  });
 
   it("IpcSocketProvider requires a path and stores it", () => {
+    logTest("IpcSocketProvider requires a path and stores it", {});
     assert.throws(() => new qc.IpcSocketProvider(), (e) => e && e.code === "INVALID_ARGUMENT");
     const p = new qc.IpcSocketProvider("\\\\.\\pipe\\geth.ipc");
     assert.equal(p.path, "\\\\.\\pipe\\geth.ipc");
   });
 
    it("FallbackProvider accepts single vs array and tries providers in order", async () => {
+     logTest("FallbackProvider accepts single vs array and tries providers in order", {});
      const p1 = { _perform: async () => "0x10" };
      const fp1 = new qc.FallbackProvider(p1);
      const bn1 = await fp1.getBlockNumber();
@@ -138,6 +193,7 @@
    });
  
    it("FallbackProvider throws when no providers provided", () => {
+     logTest("FallbackProvider throws when no providers provided", {});
      assert.throws(() => new qc.FallbackProvider([]));
    });
  });

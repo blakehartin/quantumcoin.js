@@ -5,16 +5,14 @@
  * - AbstractSigner -> BaseWallet -> Wallet
  * - NonceManager wrapper
  *
- * Cryptographic operations are delegated to `quantum-coin-js-sdk` and its
- * PQC signing library.
+ * Cryptographic operations are delegated to `quantum-coin-js-sdk`.
  */
 
 const qcsdk = require("quantum-coin-js-sdk");
-const path = require("node:path");
 const { JsonRpcProvider } = require("../providers/json-rpc-provider");
 const { assertArgument, makeError } = require("../errors");
-const { arrayify, bytesToHex, hexToBytes, isHexString, normalizeHex, utf8ToBytes } = require("../internal/hex");
-const { sha256 } = require("../utils/hashing");
+const { arrayify, bytesToHex, hexToBytes, isHexString, normalizeHex } = require("../internal/hex");
+const { hashMessage } = require("../utils/hashing");
 const { getAddress } = require("../utils/address");
 const { WeiPerEther } = require("../constants");
 
@@ -26,35 +24,8 @@ function _requireInitialized() {
   }
 }
 
-function _getPqc() {
-  // Prefer the PQC SDK installed as a direct dependency.
-  // (Some environments may also bundle it under quantum-coin-js-sdk.)
-  try {
-    // eslint-disable-next-line global-require
-    return require("quantum-coin-pqc-js-sdk");
-  } catch (e1) {
-    try {
-      // Prefer the PQC SDK version bundled with quantum-coin-js-sdk, since that
-      // combination is known to work together.
-      const sdkEntry = require.resolve("quantum-coin-js-sdk");
-      const sdkDir = path.dirname(sdkEntry);
-      // eslint-disable-next-line global-require, import/no-dynamic-require
-      return require(path.join(sdkDir, "node_modules", "quantum-coin-pqc-js-sdk"));
-    } catch (e2) {
-      throw makeError("PQC SDK not found. Ensure quantum-coin-pqc-js-sdk is installed.", "MODULE_NOT_FOUND", {
-        operation: "wallet._getPqc",
-        errors: [String(e1 && e1.message ? e1.message : e1), String(e2 && e2.message ? e2.message : e2)],
-      });
-    }
-  }
-}
-
 function _bytesToNumberArray(bytes) {
   return Array.from(bytes);
-}
-
-function _hexToNumberArray(hex) {
-  return _bytesToNumberArray(hexToBytes(hex));
 }
 
 /**
@@ -124,16 +95,31 @@ class BaseWallet extends AbstractSigner {
    */
   signMessageSync(message) {
     _requireInitialized();
-    const pqc = _getPqc();
-    const msgBytes = typeof message === "string" ? utf8ToBytes(message) : arrayify(message);
-    const digestHex = sha256(msgBytes);
-    const digest = _hexToNumberArray(digestHex);
-    const sig = pqc.cryptoSign(digest, _bytesToNumberArray(this.signingKey.privateKeyBytes));
-    const combined = qcsdk.combinePublicKeySignature(
+    const digestHex = hashMessage(message);
+    const digest = hexToBytes(digestHex);
+    const signResult = qcsdk.sign(this.signingKey.privateKeyBytes, digest, null);
+    if (signResult.resultCode !== 0) {
+      throw makeError("sign failed", "UNKNOWN_ERROR", { resultCode: signResult.resultCode });
+    }
+    const sigBytes = signResult.signature;
+    if (!sigBytes) throw makeError("sign returned no signature", "UNKNOWN_ERROR", {});
+    const sigArr = Array.from(sigBytes instanceof Uint8Array ? sigBytes : sigBytes);
+    let combined = qcsdk.combinePublicKeySignature(
       _bytesToNumberArray(this.signingKey.publicKeyBytes),
-      sig,
+      sigArr,
     );
-    if (typeof combined !== "string") throw makeError("combinePublicKeySignature failed", "UNKNOWN_ERROR", {});
+    if (combined != null && typeof combined === "object") {
+      if (typeof combined.String === "function") combined = combined.String();
+      else if (combined instanceof Uint8Array) combined = bytesToHex(combined);
+      else if (Array.isArray(combined)) combined = bytesToHex(new Uint8Array(combined));
+      else if (typeof combined.length === "number" && combined.length >= 0) combined = bytesToHex(new Uint8Array(Array.from(combined)));
+    }
+    if (combined == null || typeof combined !== "string") {
+      throw makeError("combinePublicKeySignature failed (SDK may not support this key type for message signing)", "UNKNOWN_ERROR", {
+        combinedType: typeof combined,
+        sigLength: sigArr.length,
+      });
+    }
     return normalizeHex(combined);
   }
 
@@ -192,6 +178,7 @@ class BaseWallet extends AbstractSigner {
     assertArgument(Number.isInteger(nonce) && nonce >= 0, "invalid nonce", "nonce", nonce);
 
     const chainId = tx.chainId != null ? tx.chainId : (this.provider && this.provider.chainId != null ? this.provider.chainId : null);
+    const signingContext = tx.signingContext ?? null;
 
     /** @type {any} */
     const qcWallet =
@@ -211,6 +198,7 @@ class BaseWallet extends AbstractSigner {
       gasLimit,
       remarks,
       chainId,
+      signingContext,
     );
     const signResult = qcsdk.signRawTransaction(req);
     // quantum-coin-js-sdk returns a SignResult object: { resultCode, txnHash, txnData }
@@ -359,7 +347,7 @@ class Wallet extends BaseWallet {
   }
 
   /**
-   * Creates a wallet from a seed phrase (48 words).
+   * Creates a wallet from a seed phrase (32, 36, or 48 words).
    * @param {string|string[]} phrase
    * @param {import("../providers/provider").AbstractProvider=} provider
    * @returns {Wallet}
@@ -374,7 +362,13 @@ class Wallet extends BaseWallet {
         .filter(Boolean);
     }
     assertArgument(Array.isArray(words), "phrase must be a string or string[]", "phrase", phrase);
-    assertArgument(words.length === 48, "seed phrase must contain exactly 48 words", "phrase", words.length);
+    const allowedLengths = [32, 36, 48];
+    assertArgument(
+      allowedLengths.includes(words.length),
+      "seed phrase must contain 32, 36, or 48 words",
+      "phrase",
+      words.length,
+    );
     const qcWallet = qcsdk.openWalletFromSeedWords(words);
     if (!qcWallet) throw makeError("openWalletFromSeedWords failed", "UNKNOWN_ERROR", {});
     return Wallet._fromQcWallet(qcWallet, provider || null);

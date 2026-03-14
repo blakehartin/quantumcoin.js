@@ -1,5 +1,6 @@
 /**
  * Example: Offline signing with populateTransaction + sendRawTransaction.
+ * Run with VERBOSE=1 for wallet address, tx hash, receipt block/status.
  *
  * This demonstrates how to:
  * - build unsigned tx data via `contract.populateTransaction.<method>()`
@@ -14,6 +15,7 @@
 
 const { Initialize } = require("../config");
 const qc = require("..");
+const { logExample, logAddress, logTxn } = require("../test/verbose-logger");
 
 // Hardcoded test wallet (test-only; never use for real funds)
 const TEST_WALLET_ENCRYPTED_JSON =
@@ -24,11 +26,13 @@ async function main() {
   const rpcUrl = process.env.QC_RPC_URL;
   if (!rpcUrl) throw new Error("QC_RPC_URL is required");
   const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;
+  logExample("offline-signing.js", "starting", { chainId });
 
   await Initialize(null);
 
-  const provider = new qc.JsonRpcProvider(rpcUrl, chainId);
+  const provider = qc.getProvider(rpcUrl, chainId);
   const offlineWallet = qc.Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE);
+  logAddress("wallet", offlineWallet.address);
 
   // Minimal ABI for demonstration
   const abi = [
@@ -61,9 +65,11 @@ async function main() {
 
   const sent = await provider.sendRawTransaction(rawTx);
   console.log("tx hash:", sent.hash);
+  logTxn(sent.hash, { from: offlineWallet.address });
   const receipt = await sent.wait(1, 600_000);
   console.log("receipt block:", receipt.blockNumber);
   console.log("receipt status:", receipt.status);
+  logTxn(sent.hash, { blockNumber: receipt.blockNumber, status: receipt.status });
 }
 
 main().catch((e) => {

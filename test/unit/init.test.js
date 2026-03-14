@@ -10,9 +10,12 @@ const assert = require("node:assert/strict");
 
 const { Initialize, isInitialized, Config } = require("../../config");
 const qc = require("../../index");
+const { logSuite, logTest } = require("../verbose-logger");
 
 describe("Initialize()", () => {
+  logSuite("Initialize()");
   it("initializes with default config (null)", async () => {
+    logTest("initializes with default config (null)", {});
     const ok = await Initialize(null);
     assert.equal(ok, true);
     assert.equal(isInitialized(), true);

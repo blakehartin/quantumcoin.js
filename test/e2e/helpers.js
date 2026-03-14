@@ -3,6 +3,7 @@
  */
 
 const fs = require("node:fs");
+const { isVerbose, log } = require("../verbose-logger");
 
 function getArg(name) {
   const prefix = name + "=";
@@ -15,6 +16,7 @@ function getArg(name) {
 
 function getRpcUrl() {
   return (
+    process.env.QC_ENDPOINT ||
     process.env.QC_RPC_URL ||
     getArg("--rpc") ||
     getArg("--rpcUrl") ||
@@ -38,10 +40,20 @@ function assertSolcExists(solcPath) {
   }
 }
 
+function logE2eConfig() {
+  if (!isVerbose()) return;
+  log("e2e", "config", {
+    rpcUrl: getRpcUrl() ? "(set)" : null,
+    chainId: getChainId(),
+    solcPath: getSolcPath(),
+  });
+}
+
 module.exports = {
   getRpcUrl,
   getChainId,
   getSolcPath,
   assertSolcExists,
+  logE2eConfig,
 };
 

@@ -4,13 +4,29 @@
   "description": "QuantumCoin.js SDK Examples",
   "main": "example.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "example": "node example.js",
+    "example:ts": "npx tsx example.ts",
+    "example:wallet": "node wallet-offline.js",
+    "example:wallet:ts": "npx tsx wallet-offline.ts",
+    "example:read": "node read-operations.js",
+    "example:read:ts": "npx tsx read-operations.ts",
+    "example:events": "node events.js",
+    "example:events:ts": "npx tsx events.ts",
+    "example:offline-signing": "node offline-signing.js",
+    "example:offline-signing:ts": "npx tsx offline-signing.ts",
+    "example:generator-js": "node example-generator-sdk-js.js",
+    "example:generator-js:ts": "npx tsx example-generator-sdk-js.ts",
+    "example:generator-ts": "node example-generator-sdk-ts.js",
+    "example:generator-ts:ts": "npx tsx example-generator-sdk-ts.ts"
   },
   "author": "QuantumCoin Community",
   "license": "MIT",
+  "devDependencies": {
+    "tsx": "^4.19.0"
+  },
   "dependencies": {
-    "quantum-coin-js-sdk": "^1.0.28",
-    "quantum-coin-pqc-js-sdk": "^1.0.5",
+    "quantum-coin-js-sdk": "1.0.31",
     "quantumcoin": "file:.."
   }
 }

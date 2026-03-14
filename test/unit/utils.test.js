@@ -10,9 +10,12 @@ const assert = require("node:assert/strict");
 
 const { Initialize } = require("../../config");
 const qc = require("../../index");
+const { logSuite, logTest } = require("../verbose-logger");
 
 describe("Utils", () => {
+  logSuite("Utils");
   it("parseEther/formatEther roundtrip", () => {
+    logTest("parseEther/formatEther roundtrip", {});
     const wei = qc.parseEther("1.5");
     assert.equal(wei, 1500000000000000000n);
     assert.equal(qc.formatEther(wei), "1.5");

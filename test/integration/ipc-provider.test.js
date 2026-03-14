@@ -3,24 +3,29 @@
  * @blockchainRequired readonly
  * @transactional false
  * @description Read-only IPC JSON-RPC integration tests against a local geth IPC endpoint
+ * Run with VERBOSE=1 for test names, block number/hash.
  */
 
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
 
 const qc = require("../../index");
+const { logSuite, logTest } = require("../verbose-logger");
 
-// Windows named pipe endpoint for geth IPC
-const IPC = "\\\\.\\pipe\\geth.ipc";
+const IPC = process.env.QC_ENDPOINT || process.env.QC_IPC_PATH || "\\\\.\\pipe\\geth.ipc";
 
 describe("IpcSocketProvider (readonly)", () => {
   it("getBlockNumber and getBlock('latest') work over IPC", async (t) => {
-    const provider = new qc.IpcSocketProvider(IPC);
+    logSuite("IpcSocketProvider (readonly)");
+    logTest("getBlockNumber and getBlock('latest') work over IPC", { endpoint: IPC });
+    const provider = qc.getProvider(IPC);
     try {
       const bn = await provider.getBlockNumber();
+      logTest("getBlockNumber (ipc)", { blockNumber: bn });
       assert.ok(Number.isInteger(bn) && bn >= 0);
 
       const latest = await provider.getBlock("latest");
+      logTest("getBlock('latest') (ipc)", { blockNumber: latest.number, blockHash: latest.hash });
       assert.ok(latest && typeof latest === "object");
       assert.ok(typeof latest.number === "number" && latest.number >= bn);
       // best-effort sanity: hash often exists on latest blocks

@@ -9,9 +9,12 @@ const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
 
 const qc = require("../../index");
+const { logSuite, logTest } = require("../verbose-logger");
 
 describe("BrowserProvider", () => {
+  logSuite("BrowserProvider");
   it("wraps an EIP-1193 provider and emits debug events", async () => {
+    logTest("wraps an EIP-1193 provider and emits debug events", {});
     /** @type {any[]} */
     const calls = [];
 

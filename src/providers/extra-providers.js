@@ -565,11 +565,36 @@ class FilterByBlockHash {
   }
 }
 
+/**
+ * Create a provider from an endpoint string. Detects connection type by scheme/path:
+ * - http:// or https:// → JsonRpcProvider
+ * - ws:// or wss:// → WebSocketProvider
+ * - otherwise (e.g. \\\\.\\pipe\\geth.ipc or /path/to/geth.ipc) → IpcSocketProvider
+ *
+ * @param {string=} endpoint - RPC URL (http/https), WebSocket URL (ws/wss), or IPC path. If omitted or empty, uses default from Config (HTTP).
+ * @param {number=} chainId - Chain ID (default 123123). Used for HTTP and WebSocket; ignored for IPC.
+ * @returns {AbstractProvider}
+ */
+function getProvider(endpoint, chainId) {
+  const url = typeof endpoint === "string" ? endpoint.trim() : "";
+  const lower = url.toLowerCase();
+  if (!url || lower.startsWith("http://") || lower.startsWith("https://")) {
+    return new JsonRpcProvider(url || undefined, chainId);
+  }
+  if (lower.startsWith("ws://") || lower.startsWith("wss://")) {
+    return new WebSocketProvider(url, chainId);
+  }
+  // IPC path (e.g. \\.\pipe\geth.ipc on Windows or /path/to/geth.ipc on Unix)
+  if (!url) throw makeError("missing endpoint", "INVALID_ARGUMENT", { endpoint });
+  return new IpcSocketProvider(url);
+}
+
 module.exports = {
   WebSocketProvider,
   IpcSocketProvider,
   BrowserProvider,
   FallbackProvider,
   FilterByBlockHash,
+  getProvider,
 };
 
