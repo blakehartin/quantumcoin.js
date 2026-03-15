@@ -152,6 +152,7 @@ export class TransactionResponse {
     gasPrice: any;
     chainId: number;
     blockNumber: number;
+    txType: number | null;
     remarks: string;
     /**
      * Wait for confirmations.

@@ -306,6 +306,7 @@ Wrapper returned by `provider.sendTransaction(...)` and `provider.getTransaction
 - `gasPrice: bigint | null`
 - `chainId: number | null`
 - `blockNumber: number | null`
+- `txType: number | null` — Transaction type (e.g. `1` for a standard transfer)
 - `provider: AbstractProvider | null`
 
 **Methods**
