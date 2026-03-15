@@ -389,6 +389,7 @@ User-facing wallet class.
 - `Wallet.createRandom(provider?: AbstractProvider): Wallet`
 - `Wallet.fromEncryptedJsonSync(json: string, password: string, provider?: AbstractProvider): Wallet`
 - `Wallet.fromPhrase(phrase: string | string[], provider?: AbstractProvider): Wallet`
+- `Wallet.fromKeys(privateKey: Uint8Array | string, publicKey: Uint8Array | string, provider?: AbstractProvider): Wallet`
 
 **Instance methods**
 - `getAddress(): string`
