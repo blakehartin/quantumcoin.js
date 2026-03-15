@@ -387,8 +387,19 @@ class Wallet extends BaseWallet {
     const pubBytes = typeof publicKey === "string" ? hexToBytes(publicKey) : arrayify(publicKey);
     assertArgument(privBytes.length > 0, "privateKey must not be empty", "privateKey", privateKey);
     assertArgument(pubBytes.length > 0, "publicKey must not be empty", "publicKey", publicKey);
-    const key = new SigningKey(privBytes, pubBytes);
-    return new Wallet(key, provider || null);
+
+    const privArr = _bytesToNumberArray(privBytes);
+    const pubArr = _bytesToNumberArray(pubBytes);
+    const addr = qcsdk.addressFromPublicKey(pubArr);
+    if (typeof addr !== "string") throw makeError("addressFromPublicKey failed", "UNKNOWN_ERROR", {});
+
+    const qcWallet = new qcsdk.Wallet(addr, privArr, pubArr);
+    const verified = qcsdk.verifyWallet(qcWallet);
+    if (verified !== true) {
+      throw makeError("verifyWallet failed: the provided key pair is invalid", "INVALID_ARGUMENT", { verified });
+    }
+
+    return Wallet._fromQcWallet(qcWallet, provider || null);
   }
 
   /**
