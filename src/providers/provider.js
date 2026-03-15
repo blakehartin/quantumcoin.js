@@ -142,6 +142,7 @@ class TransactionResponse {
     this.gasPrice = tx.gasPrice != null ? _hexToBigInt(tx.gasPrice) : null;
     this.chainId = tx.chainId != null ? _hexToNumber(tx.chainId) : null;
     this.blockNumber = tx.blockNumber != null ? _hexToNumber(tx.blockNumber) : null;
+    this.txType = tx.type != null ? _hexToNumber(tx.type) : null;
     this.remarks = tx.remarks != null ? normalizeHex(tx.remarks) : null;
   }
 

@@ -126,6 +126,10 @@ describe("SigningContext and fee E2E", () => {
       const receipt = await sent.wait(1, 600_000);
       assert.ok(receipt && receipt.blockNumber != null);
 
+      const confirmedTx = await provider.getTransaction(sent.hash);
+      assert.ok(confirmedTx, `${label}: getTransaction should return the mined tx`);
+      assert.strictEqual(confirmedTx.txType, 1, `${label}: txType should be 1`);
+
       const senderAfter = await provider.getBalance(wallet.address);
       const feePaid = senderBefore - senderAfter - sendBackValue;
       assert.ok(feePaid >= 0n, `${label}: fee should be non-negative`);
