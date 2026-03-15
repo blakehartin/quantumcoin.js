@@ -375,6 +375,23 @@ class Wallet extends BaseWallet {
   }
 
   /**
+   * Creates a wallet from raw private and public key bytes.
+   * @param {Uint8Array|string} privateKey  Private key bytes or hex string
+   * @param {Uint8Array|string} publicKey   Public key bytes or hex string
+   * @param {import("../providers/provider").AbstractProvider=} provider
+   * @returns {Wallet}
+   */
+  static fromKeys(privateKey, publicKey, provider) {
+    _requireInitialized();
+    const privBytes = typeof privateKey === "string" ? hexToBytes(privateKey) : arrayify(privateKey);
+    const pubBytes = typeof publicKey === "string" ? hexToBytes(publicKey) : arrayify(publicKey);
+    assertArgument(privBytes.length > 0, "privateKey must not be empty", "privateKey", privateKey);
+    assertArgument(pubBytes.length > 0, "publicKey must not be empty", "publicKey", publicKey);
+    const key = new SigningKey(privBytes, pubBytes);
+    return new Wallet(key, provider || null);
+  }
+
+  /**
    * Internal helper: build a Wallet from a quantum-coin-js-sdk Wallet object.
    * @param {any} qcWallet
    * @param {import("../providers/provider").AbstractProvider|null} provider

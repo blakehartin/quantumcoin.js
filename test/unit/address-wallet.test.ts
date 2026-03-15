@@ -145,6 +145,43 @@ describe("Address + Wallet (offline)", () => {
     assert.throws(() => qc.Wallet.fromPhrase(new Array(12).fill("word")), /32, 36, or 48 words/i);
   });
 
+  it("fromKeys creates wallet from privateKey + publicKey bytes (roundtrip address)", async () => {
+    await Initialize(null);
+    const original = qc.Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE);
+    const privBytes = original.signingKey.privateKeyBytes;
+    const pubBytes = original.signingKey.publicKeyBytes;
+
+    const fromBytes = qc.Wallet.fromKeys(privBytes, pubBytes);
+    assert.equal(fromBytes.address, original.address);
+    assert.equal(qc.isAddress(fromBytes.address), true);
+
+    const fromHex = qc.Wallet.fromKeys(original.privateKey, qc.hexlify(pubBytes));
+    assert.equal(fromHex.address, original.address);
+  });
+
+  it("fromKeys rejects empty keys", async () => {
+    await Initialize(null);
+    assert.throws(() => qc.Wallet.fromKeys(new Uint8Array(0), new Uint8Array(1)), /privateKey must not be empty/);
+    assert.throws(() => qc.Wallet.fromKeys(new Uint8Array(1), new Uint8Array(0)), /publicKey must not be empty/);
+  });
+
+  it("fromKeys wallet can sign messages", async () => {
+    await Initialize(null);
+    const original = qc.Wallet.fromPhrase(TEST_SEED_WORDS);
+    const restored = qc.Wallet.fromKeys(
+      original.signingKey.privateKeyBytes,
+      original.signingKey.publicKeyBytes,
+    );
+    assert.equal(restored.address, original.address);
+
+    const msg = "fromKeys signing test";
+    const sig = restored.signMessageSync(msg);
+    assert.equal(typeof sig, "string");
+    assert.ok(sig.startsWith("0x"));
+    const recovered = qc.verifyMessage(msg, sig);
+    assert.equal(recovered, original.address.toLowerCase());
+  });
+
   it("signMessageSync + verifyMessage roundtrip (known wallet)", async () => {
     await Initialize(null);
     const wallet = qc.Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE);

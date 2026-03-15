@@ -85,6 +85,14 @@ export class Wallet extends BaseWallet {
      */
     static fromPhrase(phrase: string | string[], provider?: import("../providers/provider").AbstractProvider | undefined): Wallet;
     /**
+     * Creates a wallet from raw private and public key bytes.
+     * @param {Uint8Array|string} privateKey  Private key bytes or hex string
+     * @param {Uint8Array|string} publicKey   Public key bytes or hex string
+     * @param {import("../providers/provider").AbstractProvider=} provider
+     * @returns {Wallet}
+     */
+    static fromKeys(privateKey: Uint8Array | string, publicKey: Uint8Array | string, provider?: import("../providers/provider").AbstractProvider | undefined): Wallet;
+    /**
      * Internal helper: build a Wallet from a quantum-coin-js-sdk Wallet object.
      * @param {any} qcWallet
      * @param {import("../providers/provider").AbstractProvider|null} provider
