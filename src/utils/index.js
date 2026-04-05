@@ -9,5 +9,6 @@ module.exports = {
   ...require("./rlp"),
   ...require("./result"),
   ...require("./units"),
+  ...require("./fixednumber"),
 };
 

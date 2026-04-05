@@ -323,12 +323,54 @@ class Wallet extends BaseWallet {
   /**
    * Creates a new random wallet.
    * @param {import("../providers/provider").AbstractProvider=} provider
+   * @param {number|null=} keyType  Optional key type: null (default=3), 3, or 5
    * @returns {Wallet}
    */
-  static createRandom(provider) {
+  static createRandom(provider, keyType) {
     _requireInitialized();
-    const qcWallet = qcsdk.newWallet();
-    if (!qcWallet) throw makeError("newWallet failed", "UNKNOWN_ERROR", {});
+    if (keyType != null) {
+      assertArgument(keyType === 3 || keyType === 5, "keyType must be null, 3, or 5", "keyType", keyType);
+    }
+    const qcWallet = qcsdk.newWallet(keyType ?? null);
+    if (!qcWallet || typeof qcWallet === "number") {
+      throw makeError("newWallet failed", "UNKNOWN_ERROR", { result: qcWallet });
+    }
+    return Wallet._fromQcWallet(qcWallet, provider || null);
+  }
+
+  /**
+   * Creates a new random seed word list (32 words for keyType 3, 36 for keyType 5).
+   * Use the returned words with `Wallet.fromPhrase()` to create a wallet.
+   * @param {number|null=} keyType  Optional key type: null (default=3), 3, or 5
+   * @returns {string[]}
+   */
+  static createRandomSeed(keyType) {
+    _requireInitialized();
+    if (keyType != null) {
+      assertArgument(keyType === 3 || keyType === 5, "keyType must be null, 3, or 5", "keyType", keyType);
+    }
+    const words = qcsdk.newWalletSeed(keyType ?? null);
+    if (!words || !Array.isArray(words)) {
+      throw makeError("newWalletSeed failed", "UNKNOWN_ERROR", { result: words });
+    }
+    return words;
+  }
+
+  /**
+   * Creates a wallet from raw seed bytes.
+   * @param {number[]} seed  Raw seed bytes: 64 (keyType 3), 72 (keyType 5), or 96 (legacy)
+   * @param {import("../providers/provider").AbstractProvider=} provider
+   * @returns {Wallet}
+   */
+  static fromSeed(seed, provider) {
+    _requireInitialized();
+    assertArgument(Array.isArray(seed), "seed must be an array of numbers", "seed", seed);
+    const allowedLengths = [64, 72, 96];
+    assertArgument(allowedLengths.includes(seed.length), "seed must be 64, 72, or 96 bytes", "seed", seed.length);
+    const qcWallet = qcsdk.openWalletFromSeed(seed);
+    if (!qcWallet || typeof qcWallet === "number") {
+      throw makeError("openWalletFromSeed failed", "UNKNOWN_ERROR", { result: qcWallet });
+    }
     return Wallet._fromQcWallet(qcWallet, provider || null);
   }
 

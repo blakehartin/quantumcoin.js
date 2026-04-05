@@ -386,7 +386,9 @@ User-facing wallet class.
 - `new Wallet(privateKeyOrBytesOrSigningKey, provider?: AbstractProvider)`
 
 **Static methods**
-- `Wallet.createRandom(provider?: AbstractProvider): Wallet`
+- `Wallet.createRandom(provider?: AbstractProvider, keyType?: number | null): Wallet` — `keyType`: `null`/`3` (default, hybrid compact) or `5` (hybrid5)
+- `Wallet.createRandomSeed(keyType?: number | null): string[]` — returns seed words (32 for keyType 3, 36 for keyType 5); pass to `fromPhrase` to open
+- `Wallet.fromSeed(seed: number[], provider?: AbstractProvider): Wallet` — opens wallet from raw seed bytes (64/72/96 length)
 - `Wallet.fromEncryptedJsonSync(json: string, password: string, provider?: AbstractProvider): Wallet`
 - `Wallet.fromPhrase(phrase: string | string[], provider?: AbstractProvider): Wallet`
 - `Wallet.fromKeys(privateKey: Uint8Array | string, publicKey: Uint8Array | string, provider?: AbstractProvider): Wallet`
@@ -634,6 +636,56 @@ const asOutput: Uint256 = 123n;
 - `parseUnits(value: string, decimals?: number): bigint`
 - `formatEther(value: BigNumberish): string`
 - `parseEther(value: string): bigint`
+
+### FixedNumber (fixed-point arithmetic)
+
+Fixed-point decimal arithmetic compatible with ethers.js v5/v6.
+
+**FixedFormat type:**
+`number | string | { signed?: boolean, width?: number, decimals?: number }`
+
+Default format: `"fixed128x18"` (signed, 128-bit, 18 decimals).
+
+**Static factories:**
+- `FixedNumber.fromString(value: string, format?: FixedFormat): FixedNumber`
+- `FixedNumber.fromValue(value: BigNumberish, decimals?: number, format?: FixedFormat): FixedNumber`
+- `FixedNumber.fromBytes(value: BytesLike, format?: FixedFormat): FixedNumber`
+- `FixedNumber.from(value: any, format?: FixedFormat): FixedNumber` — dispatches to `fromString`, `fromBytes`, or `fromValue`
+- `FixedNumber.isFixedNumber(value: any): boolean`
+
+**Properties (read-only):**
+- `format: string` — e.g. `"fixed128x18"`
+- `signed: boolean`
+- `width: number`
+- `decimals: number`
+- `value: bigint` — raw internal integer
+
+**Arithmetic (safe throws on overflow, unsafe wraps silently):**
+- `add(other)` / `addUnsafe(other): FixedNumber`
+- `sub(other)` / `subUnsafe(other): FixedNumber`
+- `mul(other)` / `mulUnsafe(other): FixedNumber`
+- `div(other)` / `divUnsafe(other): FixedNumber`
+- `mulSignal(other): FixedNumber` — throws on precision loss
+- `divSignal(other): FixedNumber` — throws on precision loss
+
+**Comparison:**
+- `cmp(other): number` — returns `-1`, `0`, or `1`
+- `eq(other)`, `lt(other)`, `lte(other)`, `gt(other)`, `gte(other): boolean`
+
+**Rounding:**
+- `floor(): FixedNumber`
+- `ceiling(): FixedNumber`
+- `round(decimals?: number): FixedNumber`
+
+**Inspection:**
+- `isZero(): boolean`
+- `isNegative(): boolean`
+
+**Conversion:**
+- `toString(): string`
+- `toUnsafeFloat(): number`
+- `toFormat(format: FixedFormat): FixedNumber`
+- `toHexString(width?: number): string`
 
 ### RLP
 

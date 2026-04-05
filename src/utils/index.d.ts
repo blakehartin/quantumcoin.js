@@ -61,5 +61,6 @@ declare const _exports: {
     computeAddress(key: string | Uint8Array): string;
     verifyMessage(message: string | Uint8Array, signature: string): string;
     recoverAddress(message: string | Uint8Array, signature: string): string;
+    FixedNumber: typeof import("./fixednumber").FixedNumber;
 };
 export = _exports;

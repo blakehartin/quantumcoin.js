@@ -2360,7 +2360,7 @@ The following utility classes are exported from ethers.js but not implemented in
 
 **Purpose**: Represents fixed-point decimal numbers
 
-**Note**: This class is exported from ethers.js but not implemented in quantumcoin.js. Use `bigint` and `formatUnits`/`parseUnits` for decimal handling in quantumcoin.js.
+**Status**: Implemented in `src/utils/fixednumber.js`. Provides ethers.js v5/v6-compatible fixed-point arithmetic using native `bigint`, including `fromString`, `fromValue`, `fromBytes`, `from`, safe/unsafe/signal arithmetic, comparison, rounding, and format conversion. See `README-SDK.md` for full API documentation.
 
 ---
 
