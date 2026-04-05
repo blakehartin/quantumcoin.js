@@ -293,7 +293,7 @@ function scrypt(password, salt, N, r, p, dkLen) {
 function scryptSync(password, salt, N, r, p, dkLen) {
   const pw = arrayify(password);
   const sa = arrayify(salt);
-  const out = crypto.scryptSync(Buffer.from(pw), Buffer.from(sa), dkLen, { N, r, p, maxmem: 128 * 1024 * 1024 });
+  const out = crypto.scryptSync(Buffer.from(pw), Buffer.from(sa), dkLen, { N, r, p, maxmem: 257 * 1024 * 1024 }); //257 instead of 256 for buffer for compat for N=262144, r=8, p=1
   return bytesToHex(new Uint8Array(out));
 }
 
