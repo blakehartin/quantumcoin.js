@@ -64,4 +64,11 @@ describe("Hashing", () => {
     const emptyDigest = qc.hashMessage("");
     assert.ok(emptyDigest.startsWith("0x") && emptyDigest.length === 66);
   });
+
+  it("scryptSync with N=262144, r=8, p=1 produces expected hardcoded output", () => {
+    const pw = qc.toUtf8Bytes("password");
+    const salt = qc.toUtf8Bytes("salt");
+    const out = qc.scryptSync(pw, salt, 262144, 8, 1, 32);
+    assert.equal(out, "0xd36e883d93698af49daa529419bb1d97da262bbaa225c12fcf05651268659f42");
+  });
 });
