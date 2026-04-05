@@ -388,5 +388,177 @@ describe("Address + Wallet (offline)", () => {
     assert.equal(await qc.resolveAddress(wallet), wallet.address.toLowerCase());
     assert.equal(await qc.resolveAddress(Promise.resolve(wallet.address)), wallet.address.toLowerCase());
   });
+
+  // ---------------------------------------------------------------------------
+  // createRandom with keyType
+  // ---------------------------------------------------------------------------
+
+  it("createRandom(null, null) creates wallet with explicit null keyType", async () => {
+    await Initialize(null);
+    const w = qc.Wallet.createRandom(null, null);
+    assert.equal(qc.isAddress(w.address), true);
+  });
+
+  it("createRandom(null, 3) creates wallet with keyType 3 and sign/verify roundtrip", async () => {
+    await Initialize(null);
+    const w = qc.Wallet.createRandom(null, 3);
+    assert.equal(qc.isAddress(w.address), true);
+    const sig = w.signMessageSync("kt3 test");
+    assert.ok(sig.startsWith("0x"));
+    assert.equal(qc.verifyMessage("kt3 test", sig), w.address.toLowerCase());
+  });
+
+  it("createRandom(null, 5) creates wallet with keyType 5 and sign/verify roundtrip", async () => {
+    await Initialize(null);
+    const w = qc.Wallet.createRandom(null, 5);
+    assert.equal(qc.isAddress(w.address), true);
+    const sig = w.signMessageSync("kt5 test");
+    assert.ok(sig.startsWith("0x"));
+    assert.equal(qc.verifyMessage("kt5 test", sig), w.address.toLowerCase());
+  });
+
+  it("createRandom(null, 3) signTransaction works offline", async () => {
+    await Initialize(null);
+    const w = qc.Wallet.createRandom(null, 3);
+    const to = qc.Wallet.createRandom().address;
+    const raw = await w.signTransaction({ to, value: 0n, gasLimit: 21000, nonce: 0, chainId: 123123 });
+    assert.ok(typeof raw === "string" && raw.startsWith("0x"));
+  });
+
+  it("createRandom(null, 5) signTransaction works offline", async () => {
+    await Initialize(null);
+    const w = qc.Wallet.createRandom(null, 5);
+    const to = qc.Wallet.createRandom().address;
+    const raw = await w.signTransaction({ to, value: 0n, gasLimit: 21000, nonce: 0, chainId: 123123 });
+    assert.ok(typeof raw === "string" && raw.startsWith("0x"));
+  });
+
+  it("createRandom(null, 3) encryptSync + fromEncryptedJsonSync roundtrip", async () => {
+    await Initialize(null);
+    const w = qc.Wallet.createRandom(null, 3);
+    const json = w.encryptSync("testPassword123!");
+    const w2 = qc.Wallet.fromEncryptedJsonSync(json, "testPassword123!");
+    assert.equal(w2.address, w.address);
+  });
+
+  it("createRandom(null, 5) encryptSync + fromEncryptedJsonSync roundtrip", async () => {
+    await Initialize(null);
+    const w = qc.Wallet.createRandom(null, 5);
+    const json = w.encryptSync("testPassword123!");
+    const w2 = qc.Wallet.fromEncryptedJsonSync(json, "testPassword123!");
+    assert.equal(w2.address, w.address);
+  });
+
+  it("createRandom rejects invalid keyType values", async () => {
+    await Initialize(null);
+    assert.throws(() => qc.Wallet.createRandom(null, 1), /keyType must be null, 3, or 5/);
+    assert.throws(() => qc.Wallet.createRandom(null, 2), /keyType must be null, 3, or 5/);
+    assert.throws(() => qc.Wallet.createRandom(null, 4), /keyType must be null, 3, or 5/);
+    assert.throws(() => qc.Wallet.createRandom(null, "3"), /keyType must be null, 3, or 5/);
+    assert.throws(() => qc.Wallet.createRandom(null, true), /keyType must be null, 3, or 5/);
+  });
+
+  // ---------------------------------------------------------------------------
+  // createRandomSeed
+  // ---------------------------------------------------------------------------
+
+  it("createRandomSeed() returns 32-word array (default keyType)", async () => {
+    await Initialize(null);
+    const words = qc.Wallet.createRandomSeed();
+    assert.equal(Array.isArray(words), true);
+    assert.equal(words.length, 32);
+    assert.ok(words.every((w) => typeof w === "string" && w.length > 0));
+  });
+
+  it("createRandomSeed(3) returns 32-word array", async () => {
+    await Initialize(null);
+    const words = qc.Wallet.createRandomSeed(3);
+    assert.equal(words.length, 32);
+  });
+
+  it("createRandomSeed(5) returns 36-word array", async () => {
+    await Initialize(null);
+    const words = qc.Wallet.createRandomSeed(5);
+    assert.equal(words.length, 36);
+  });
+
+  it("createRandomSeed roundtrip via fromPhrase produces valid signing wallet", async () => {
+    await Initialize(null);
+    const words = qc.Wallet.createRandomSeed(3);
+    const w = qc.Wallet.fromPhrase(words);
+    assert.equal(qc.isAddress(w.address), true);
+    const sig = w.signMessageSync("seed roundtrip");
+    assert.equal(qc.verifyMessage("seed roundtrip", sig), w.address.toLowerCase());
+  });
+
+  it("createRandomSeed rejects invalid keyType", async () => {
+    await Initialize(null);
+    assert.throws(() => qc.Wallet.createRandomSeed(1), /keyType must be null, 3, or 5/);
+    assert.throws(() => qc.Wallet.createRandomSeed(2), /keyType must be null, 3, or 5/);
+    assert.throws(() => qc.Wallet.createRandomSeed(4), /keyType must be null, 3, or 5/);
+  });
+
+  // ---------------------------------------------------------------------------
+  // fromSeed
+  // ---------------------------------------------------------------------------
+
+  it("fromSeed roundtrip: createRandomSeed(3) -> fromPhrase -> fromSeed produces same address", async () => {
+    await Initialize(null);
+    const seedwords = require("seed-words");
+    const words = qc.Wallet.createRandomSeed(3);
+    const seedArr = seedwords.getSeedArrayFromWordList(words);
+    assert.equal(seedArr.length, 64);
+    const wFromWords = qc.Wallet.fromPhrase(words);
+    const wFromSeed = qc.Wallet.fromSeed(Array.from(seedArr));
+    assert.equal(wFromSeed.address, wFromWords.address);
+  });
+
+  it("fromSeed roundtrip: createRandomSeed(5) -> fromPhrase -> fromSeed produces same address", async () => {
+    await Initialize(null);
+    const seedwords = require("seed-words");
+    const words = qc.Wallet.createRandomSeed(5);
+    const seedArr = seedwords.getSeedArrayFromWordList(words);
+    assert.equal(seedArr.length, 72);
+    const wFromWords = qc.Wallet.fromPhrase(words);
+    const wFromSeed = qc.Wallet.fromSeed(Array.from(seedArr));
+    assert.equal(wFromSeed.address, wFromWords.address);
+  });
+
+  it("fromSeed rejects non-array input", async () => {
+    await Initialize(null);
+    assert.throws(() => qc.Wallet.fromSeed("not an array"), /seed must be an array/);
+    assert.throws(() => qc.Wallet.fromSeed(12345), /seed must be an array/);
+    assert.throws(() => qc.Wallet.fromSeed(null), /seed must be an array/);
+  });
+
+  it("fromSeed rejects wrong-length arrays", async () => {
+    await Initialize(null);
+    assert.throws(() => qc.Wallet.fromSeed(new Array(32).fill(0)), /seed must be 64, 72, or 96 bytes/);
+    assert.throws(() => qc.Wallet.fromSeed(new Array(48).fill(0)), /seed must be 64, 72, or 96 bytes/);
+    assert.throws(() => qc.Wallet.fromSeed(new Array(100).fill(0)), /seed must be 64, 72, or 96 bytes/);
+    assert.throws(() => qc.Wallet.fromSeed([]), /seed must be 64, 72, or 96 bytes/);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Hardcoded fromSeed test vectors
+  // ---------------------------------------------------------------------------
+
+  it("fromSeed with hardcoded 64-byte seed (keyType 3) produces expected address", async () => {
+    await Initialize(null);
+    const seed3 = [51,214,149,165,206,96,227,5,173,247,83,219,210,2,221,2,4,48,117,55,88,109,241,204,31,62,23,128,47,21,168,247,28,118,30,185,229,255,17,27,34,107,225,138,254,156,55,9,253,255,142,148,234,189,232,43,173,84,159,108,8,35,58,77];
+    const addr3 = "0x2ceeaE376719215f1597d144Ee1549AB64f1Eb8D49f1f84D9F3a526400d1a4F6".toLowerCase();
+    const w = qc.Wallet.fromSeed(seed3);
+    assert.equal(w.address, addr3);
+    assert.equal(qc.isAddress(w.address), true);
+  });
+
+  it("fromSeed with hardcoded 72-byte seed (keyType 5) produces expected address", async () => {
+    await Initialize(null);
+    const seed5 = [58,255,242,97,43,252,180,220,51,164,15,238,50,215,248,10,29,19,152,124,211,29,41,81,233,103,152,244,59,239,145,216,189,77,244,198,230,165,109,191,18,12,199,252,232,42,197,9,237,237,237,93,254,89,177,192,7,178,95,70,174,88,126,130,89,205,140,175,7,142,191,84];
+    const addr5 = "0xeB12DF9517F867749056fE02EbCba67c9D84a97A6f4eDc6DA6555Ff4A30b9538".toLowerCase();
+    const w = qc.Wallet.fromSeed(seed5);
+    assert.equal(w.address, addr5);
+    assert.equal(qc.isAddress(w.address), true);
+  });
 });
 

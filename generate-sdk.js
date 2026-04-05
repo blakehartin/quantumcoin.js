@@ -1765,6 +1765,7 @@ function _createPackageScaffold({ outDir, pkgName, pkgDesc, pkgAuthor, pkgLicens
         lib: ["ES2022"],
         module: "CommonJS",
         declaration: true,
+        rootDir: "src",
         outDir: "dist",
         strict: true,
         esModuleInterop: true,
