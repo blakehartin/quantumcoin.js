@@ -399,6 +399,7 @@ User-facing wallet class.
 - `getTransactionCount(blockTag?: string): Promise<number>`
 - `encryptSync(password: string | Uint8Array): string`
 - `connect(provider: AbstractProvider): Wallet`
+- `getSigningContext(fullSign?: boolean | null): number` — returns the recommended signing context for this wallet (based on public key type). Setting `fullSign` to `true` may incur additional gas cost.
 
 **Example(s):**
 - `examples/wallet-offline.js`

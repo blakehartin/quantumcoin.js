@@ -64,6 +64,13 @@ export class BaseWallet extends AbstractSigner {
  */
 export class Wallet extends BaseWallet {
     /**
+     * Returns the recommended signing context for this wallet.
+     * Setting fullSign to true may incur additional gas cost.
+     * @param {boolean|null=} fullSign  Defaults to false when null or omitted.
+     * @returns {number}
+     */
+    getSigningContext(fullSign?: boolean | null): number;
+    /**
      * Creates a new random wallet.
      * @param {import("../providers/provider").AbstractProvider=} provider
      * @param {number|null=} keyType  Optional key type: null (default=3), 3, or 5

@@ -546,4 +546,42 @@ describe("Address + Wallet (offline)", () => {
     assert.equal(w.address, addr5);
     assert.equal(qc.isAddress(w.address), true);
   });
+
+  // ---------------------------------------------------------------------------
+  // getSigningContext
+  // ---------------------------------------------------------------------------
+
+  it("getSigningContext: 32-word wallet (pubKey 1408) returns 0 by default, 2 with fullSign", async () => {
+    await Initialize(null);
+    const w = qc.Wallet.fromPhrase(TEST_SEED_WORDS_32);
+    assert.strictEqual(w.getSigningContext(), 0);
+    assert.strictEqual(w.getSigningContext(null), 0);
+    assert.strictEqual(w.getSigningContext(false), 0);
+    assert.strictEqual(w.getSigningContext(true), 2);
+  });
+
+  it("getSigningContext: 48-word wallet (pubKey 1408) returns 0 by default, 2 with fullSign", async () => {
+    await Initialize(null);
+    const w = qc.Wallet.fromPhrase(TEST_SEED_WORDS);
+    assert.strictEqual(w.getSigningContext(), 0);
+    assert.strictEqual(w.getSigningContext(null), 0);
+    assert.strictEqual(w.getSigningContext(false), 0);
+    assert.strictEqual(w.getSigningContext(true), 2);
+  });
+
+  it("getSigningContext: 36-word wallet (pubKey 2688) returns 1 for all fullSign values", async () => {
+    await Initialize(null);
+    const w = qc.Wallet.fromPhrase(TEST_SEED_WORDS_36);
+    assert.strictEqual(w.getSigningContext(), 1);
+    assert.strictEqual(w.getSigningContext(null), 1);
+    assert.strictEqual(w.getSigningContext(false), 1);
+    assert.strictEqual(w.getSigningContext(true), 1);
+  });
+
+  it("getSigningContext: throws for unsupported public key size", async () => {
+    await Initialize(null);
+    const w = qc.Wallet.fromPhrase(TEST_SEED_WORDS_32);
+    (w.signingKey as any).publicKeyBytes = new Uint8Array(100);
+    assert.throws(() => w.getSigningContext(), /unsupported public key size/);
+  });
 });

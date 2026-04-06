@@ -92,11 +92,11 @@ describe("SigningContext and fee E2E", () => {
 
     // --- Phase 2: Send back with signingContext (36: null, 1; 32: null, 0, 2) ---
     const cases = [
-      { wallet: wallet36, signingContext: null, label: "36_null" },
-      { wallet: wallet36, signingContext: 1, label: "36_1" },
-      { wallet: wallet32, signingContext: null, label: "32_null" },
-      { wallet: wallet32, signingContext: 0, label: "32_0" },
-      { wallet: wallet32, signingContext: 2, label: "32_2" },
+      { wallet: wallet36, signingContext: wallet36.getSigningContext(), label: "36_null" },
+      { wallet: wallet36, signingContext: wallet36.getSigningContext(true), label: "36_1" },
+      { wallet: wallet32, signingContext: wallet32.getSigningContext(), label: "32_null" },
+      { wallet: wallet32, signingContext: wallet32.getSigningContext(), label: "32_0" },
+      { wallet: wallet32, signingContext: wallet32.getSigningContext(true), label: "32_2" },
     ];
 
     const expectedFees = {
