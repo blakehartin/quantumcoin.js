@@ -312,6 +312,24 @@ class Wallet extends BaseWallet {
   }
 
   /**
+   * Returns the recommended signing context for this wallet.
+   * Setting fullSign to true may incur additional gas cost.
+   * @param {boolean|null=} fullSign  Defaults to false when null or omitted.
+   * @returns {number}
+   */
+  getSigningContext(fullSign) {
+    const fs = fullSign ?? false;
+    const pubLen = this.signingKey.publicKeyBytes.length;
+    if (pubLen === 1408) {
+      return fs ? 2 : 0;
+    }
+    if (pubLen === 2688) {
+      return 1;
+    }
+    throw makeError("unsupported public key size", "UNSUPPORTED_OPERATION", { publicKeyLength: pubLen });
+  }
+
+  /**
    * Returns a new wallet connected to a provider.
    * @param {import("../providers/provider").AbstractProvider} provider
    * @returns {Wallet}

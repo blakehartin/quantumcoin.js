@@ -83,11 +83,11 @@ describe("SigningContext and fee E2E", () => {
     const sendBackValue = SEND_AMOUNT - qc.parseEther("10000");
 
     const cases = [
-      { wallet: wallet36, signingContext: null as number | null, label: "36_null" },
-      { wallet: wallet36, signingContext: 1, label: "36_1" },
-      { wallet: wallet32, signingContext: null as number | null, label: "32_null" },
-      { wallet: wallet32, signingContext: 0, label: "32_0" },
-      { wallet: wallet32, signingContext: 2, label: "32_2" },
+      { wallet: wallet36, signingContext: wallet36.getSigningContext(), label: "36_null" },
+      { wallet: wallet36, signingContext: wallet36.getSigningContext(true), label: "36_1" },
+      { wallet: wallet32, signingContext: wallet32.getSigningContext(), label: "32_null" },
+      { wallet: wallet32, signingContext: wallet32.getSigningContext(), label: "32_0" },
+      { wallet: wallet32, signingContext: wallet32.getSigningContext(true), label: "32_2" },
     ];
 
     const expectedFees: Record<string, bigint> = {
