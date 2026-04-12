@@ -1,6 +1,6 @@
 {
   "name": "quantumcoinjs-sdk-examples",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "QuantumCoin.js SDK Examples",
   "main": "example.js",
   "scripts": {
@@ -26,7 +26,7 @@
     "tsx": "^4.19.0"
   },
   "dependencies": {
-    "quantum-coin-js-sdk": "1.0.32",
+    "quantum-coin-js-sdk": "1.0.33",
     "quantumcoin": "file:.."
   }
 }

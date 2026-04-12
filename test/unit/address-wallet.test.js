@@ -562,6 +562,96 @@ describe("Address + Wallet (offline)", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // encryptSeedSync
+  // ---------------------------------------------------------------------------
+
+  it("encryptSeedSync: 32-word seed (64 bytes) roundtrip preserves address, privateKey, publicKey", async () => {
+    await Initialize(null);
+    const seedwords = require("seed-words");
+    const seedArr = seedwords.getSeedArrayFromWordList(TEST_SEED_WORDS_32);
+    assert.equal(seedArr.length, 64);
+    const ref = qc.Wallet.fromPhrase(TEST_SEED_WORDS_32);
+
+    const json = qc.Wallet.encryptSeedSync(Array.from(seedArr), PASSPHRASE_PHRASE);
+    assert.equal(typeof json, "string");
+    assert.ok(json.includes("address"));
+
+    const restored = qc.Wallet.fromEncryptedJsonSync(json, PASSPHRASE_PHRASE);
+    assert.equal(restored.address, ref.address);
+    assert.equal(restored.address, TEST_SEED_ADDRESS_32);
+    assert.equal(restored.privateKey, ref.privateKey);
+    assert.deepEqual(restored.signingKey.publicKeyBytes, ref.signingKey.publicKeyBytes);
+  });
+
+  it("encryptSeedSync: 36-word seed (72 bytes) roundtrip preserves address, privateKey, publicKey", async () => {
+    await Initialize(null);
+    const seedwords = require("seed-words");
+    const seedArr = seedwords.getSeedArrayFromWordList(TEST_SEED_WORDS_36);
+    assert.equal(seedArr.length, 72);
+    const ref = qc.Wallet.fromPhrase(TEST_SEED_WORDS_36);
+
+    const json = qc.Wallet.encryptSeedSync(Array.from(seedArr), PASSPHRASE_PHRASE);
+    assert.equal(typeof json, "string");
+    assert.ok(json.includes("address"));
+
+    const restored = qc.Wallet.fromEncryptedJsonSync(json, PASSPHRASE_PHRASE);
+    assert.equal(restored.address, ref.address);
+    assert.equal(restored.address, TEST_SEED_ADDRESS_36);
+    assert.equal(restored.privateKey, ref.privateKey);
+    assert.deepEqual(restored.signingKey.publicKeyBytes, ref.signingKey.publicKeyBytes);
+  });
+
+  it("encryptSeedSync: 48-word seed (96 bytes) roundtrip preserves address, privateKey, publicKey", async () => {
+    await Initialize(null);
+    const seedwords = require("seed-words");
+    const seedArr = seedwords.getSeedArrayFromWordList(TEST_SEED_WORDS);
+    assert.equal(seedArr.length, 96);
+    const ref = qc.Wallet.fromPhrase(TEST_SEED_WORDS);
+
+    const json = qc.Wallet.encryptSeedSync(Array.from(seedArr), PASSPHRASE_PHRASE);
+    assert.equal(typeof json, "string");
+    assert.ok(json.includes("address"));
+
+    const restored = qc.Wallet.fromEncryptedJsonSync(json, PASSPHRASE_PHRASE);
+    assert.equal(restored.address, ref.address);
+    assert.equal(restored.address, TEST_SEED_ADDRESS);
+    assert.equal(restored.privateKey, ref.privateKey);
+    assert.deepEqual(restored.signingKey.publicKeyBytes, ref.signingKey.publicKeyBytes);
+  });
+
+  it("encryptSeedSync accepts Uint8Array seed", async () => {
+    await Initialize(null);
+    const seedwords = require("seed-words");
+    const seedArr = seedwords.getSeedArrayFromWordList(TEST_SEED_WORDS_32);
+    const ref = qc.Wallet.fromPhrase(TEST_SEED_WORDS_32);
+
+    const json = qc.Wallet.encryptSeedSync(new Uint8Array(seedArr), PASSPHRASE_PHRASE);
+    const restored = qc.Wallet.fromEncryptedJsonSync(json, PASSPHRASE_PHRASE);
+    assert.equal(restored.address, ref.address);
+  });
+
+  it("encryptSeedSync rejects non-array seed input", async () => {
+    await Initialize(null);
+    assert.throws(() => qc.Wallet.encryptSeedSync("not an array", PASSPHRASE_PHRASE), /seed must be an array/);
+    assert.throws(() => qc.Wallet.encryptSeedSync(12345, PASSPHRASE_PHRASE), /seed must be an array/);
+    assert.throws(() => qc.Wallet.encryptSeedSync(null, PASSPHRASE_PHRASE), /seed must be an array/);
+  });
+
+  it("encryptSeedSync rejects wrong-length seed arrays", async () => {
+    await Initialize(null);
+    assert.throws(() => qc.Wallet.encryptSeedSync(new Array(32).fill(0), PASSPHRASE_PHRASE), /seed must be 64, 72, or 96 bytes/);
+    assert.throws(() => qc.Wallet.encryptSeedSync(new Array(48).fill(0), PASSPHRASE_PHRASE), /seed must be 64, 72, or 96 bytes/);
+    assert.throws(() => qc.Wallet.encryptSeedSync(new Array(100).fill(0), PASSPHRASE_PHRASE), /seed must be 64, 72, or 96 bytes/);
+    assert.throws(() => qc.Wallet.encryptSeedSync([], PASSPHRASE_PHRASE), /seed must be 64, 72, or 96 bytes/);
+  });
+
+  it("encryptSeedSync rejects password shorter than 12 characters", async () => {
+    await Initialize(null);
+    const seed = new Array(64).fill(1);
+    assert.throws(() => qc.Wallet.encryptSeedSync(seed, "short"), /serializeSeedAsEncryptedWallet failed/);
+  });
+
+  // ---------------------------------------------------------------------------
   // getSigningContext
   // ---------------------------------------------------------------------------
 
