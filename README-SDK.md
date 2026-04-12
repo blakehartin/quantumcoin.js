@@ -392,6 +392,7 @@ User-facing wallet class.
 - `Wallet.fromEncryptedJsonSync(json: string, password: string, provider?: AbstractProvider): Wallet`
 - `Wallet.fromPhrase(phrase: string | string[], provider?: AbstractProvider): Wallet`
 - `Wallet.fromKeys(privateKey: Uint8Array | string, publicKey: Uint8Array | string, provider?: AbstractProvider): Wallet`
+- `Wallet.encryptSeedSync(seed: number[] | Uint8Array, password: string | Uint8Array): string` — encrypts raw seed bytes (64/72/96) into a wallet JSON string (version 5 pre-expansion format). The resulting JSON can be opened with `fromEncryptedJsonSync()` or Desktop/Mobile/Web/CLI wallet applications. Password must be at least 12 characters.
 
 **Instance methods**
 - `getAddress(): string`

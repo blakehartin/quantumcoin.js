@@ -312,6 +312,26 @@ class Wallet extends BaseWallet {
   }
 
   /**
+   * Encrypts raw seed bytes into a wallet JSON string (version 5 pre-expansion format).
+   * The resulting JSON can be opened with `Wallet.fromEncryptedJsonSync()` or
+   * Desktop/Mobile/Web/CLI wallet applications.
+   * @param {number[]|Uint8Array} seed  Raw seed bytes: 64 (keyType 3), 72 (keyType 5), or 96 (legacy)
+   * @param {string|Uint8Array} password  Passphrase (at least 12 characters)
+   * @returns {string}
+   */
+  static encryptSeedSync(seed, password) {
+    _requireInitialized();
+    const seedArr = seed instanceof Uint8Array ? Array.from(seed) : seed;
+    assertArgument(Array.isArray(seedArr), "seed must be an array of numbers or Uint8Array", "seed", seed);
+    const allowedLengths = [64, 72, 96];
+    assertArgument(allowedLengths.includes(seedArr.length), "seed must be 64, 72, or 96 bytes", "seed", seedArr.length);
+    const pw = typeof password === "string" ? password : Buffer.from(arrayify(password)).toString("utf8");
+    const json = qcsdk.serializeSeedAsEncryptedWallet(seedArr, pw);
+    if (typeof json !== "string") throw makeError("serializeSeedAsEncryptedWallet failed", "UNKNOWN_ERROR", {});
+    return json;
+  }
+
+  /**
    * Returns the recommended signing context for this wallet.
    * Setting fullSign to true may incur additional gas cost.
    * @param {boolean|null=} fullSign  Defaults to false when null or omitted.

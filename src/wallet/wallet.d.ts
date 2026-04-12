@@ -149,6 +149,15 @@ export class Wallet extends BaseWallet {
      */
     encryptSync(password: string | Uint8Array): string;
     /**
+     * Encrypts raw seed bytes into a wallet JSON string (version 5 pre-expansion format).
+     * The resulting JSON can be opened with `Wallet.fromEncryptedJsonSync()` or
+     * Desktop/Mobile/Web/CLI wallet applications.
+     * @param {number[]|Uint8Array} seed  Raw seed bytes: 64 (keyType 3), 72 (keyType 5), or 96 (legacy)
+     * @param {string|Uint8Array} password  Passphrase (at least 12 characters)
+     * @returns {string}
+     */
+    static encryptSeedSync(seed: number[] | Uint8Array, password: string | Uint8Array): string;
+    /**
      * Returns a new wallet connected to a provider.
      * @param {import("../providers/provider").AbstractProvider} provider
      * @returns {Wallet}

@@ -58,6 +58,23 @@ const restored = Wallet.fromEncryptedJsonSync(encrypted, "mySecurePassword123");
 console.log(restored.address);
 ```
 
+### Encrypt a raw seed
+
+You can encrypt raw seed bytes (pre-expansion) into a portable wallet JSON (version 5 format) without first opening the wallet:
+
+```js
+const { Wallet } = require("quantumcoin");
+const { Initialize } = require("quantumcoin/config");
+
+await Initialize(null);
+
+// 64-byte seed (keyType 3), 72-byte (keyType 5), or 96-byte (legacy)
+const seed = [51,214,149,165, /* ...remaining bytes... */];
+const json = Wallet.encryptSeedSync(seed, "mySecurePassword123");
+const restored = Wallet.fromEncryptedJsonSync(json, "mySecurePassword123");
+console.log(restored.address);
+```
+
 ## Contracts (read-only)
 
 ```js

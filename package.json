@@ -1,6 +1,6 @@
 {
   "name": "quantumcoin",
-  "version": "7.0.9",
+  "version": "7.0.10",
   "description": "QuantumCoin.js - a post quantum cryptography SDK for QuantumCoin",
   "main": "index.js",
   "types": "src/index.d.ts",
@@ -90,6 +90,6 @@
   },
   "dependencies": {
     "seed-words": "^1.0.2",
-    "quantum-coin-js-sdk": "1.0.32"
+    "quantum-coin-js-sdk": "1.0.33"
   }
 }
