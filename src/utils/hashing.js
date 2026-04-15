@@ -7,9 +7,7 @@
  */
 
 const crypto = require("crypto");
-const { MessagePrefix } = require("../constants");
 const { arrayify, bytesToHex, utf8ToBytes } = require("../internal/hex");
-const { concat } = require("./encoding");
 
 const _MASK64 = (1n << 64n) - 1n;
 
@@ -193,18 +191,6 @@ function ripemd160(data) {
 }
 
 /**
- * EIP-191 personal-sign message digest (ethers.js hashMessage pattern).
- * Prefixes message with MessagePrefix and decimal length, then keccak256.
- * If message is a string, it is converted to UTF-8 bytes first.
- * @param {string|Uint8Array} message
- * @returns {string} Hex digest
- */
-function hashMessage(message) {
-  const msgBytes = typeof message === "string" ? utf8ToBytes(message) : arrayify(message);
-  return keccak256(concat([utf8ToBytes(MessagePrefix), utf8ToBytes(String(msgBytes.length)), msgBytes]));
-}
-
-/**
  * ethers-style id(text) => keccak256(utf8Bytes(text))
  * @param {string} text
  * @returns {string}
@@ -230,8 +216,8 @@ function randomBytes(length) {
  * @returns {string}
  */
 function computeHmac(algorithm, key, data) {
-  const k = arrayify(key);
-  const d = arrayify(data);
+  const k = typeof key === "string" ? utf8ToBytes(key) : arrayify(key);
+  const d = typeof data === "string" ? utf8ToBytes(data) : arrayify(data);
   const h = crypto.createHmac(algorithm, Buffer.from(k)).update(Buffer.from(d)).digest();
   return bytesToHex(new Uint8Array(h));
 }
@@ -246,8 +232,8 @@ function computeHmac(algorithm, key, data) {
  * @returns {string}
  */
 function pbkdf2(password, salt, iterations, keylen, algorithm) {
-  const p = arrayify(password);
-  const s = arrayify(salt);
+  const p = typeof password === "string" ? utf8ToBytes(password) : arrayify(password);
+  const s = typeof salt === "string" ? utf8ToBytes(salt) : arrayify(salt);
   const a = algorithm || "sha256";
   const out = crypto.pbkdf2Sync(Buffer.from(p), Buffer.from(s), iterations, keylen, a);
   return bytesToHex(new Uint8Array(out));
@@ -264,8 +250,8 @@ function pbkdf2(password, salt, iterations, keylen, algorithm) {
  * @returns {Promise<string>}
  */
 function scrypt(password, salt, N, r, p, dkLen) {
-  const pw = arrayify(password);
-  const sa = arrayify(salt);
+  const pw = typeof password === "string" ? utf8ToBytes(password) : arrayify(password);
+  const sa = typeof salt === "string" ? utf8ToBytes(salt) : arrayify(salt);
   return new Promise((resolve, reject) => {
     crypto.scrypt(
       Buffer.from(pw),
@@ -291,15 +277,14 @@ function scrypt(password, salt, N, r, p, dkLen) {
  * @returns {string}
  */
 function scryptSync(password, salt, N, r, p, dkLen) {
-  const pw = arrayify(password);
-  const sa = arrayify(salt);
+  const pw = typeof password === "string" ? utf8ToBytes(password) : arrayify(password);
+  const sa = typeof salt === "string" ? utf8ToBytes(salt) : arrayify(salt);
   const out = crypto.scryptSync(Buffer.from(pw), Buffer.from(sa), dkLen, { N, r, p, maxmem: 257 * 1024 * 1024 }); //257 instead of 256 for buffer for compat for N=262144, r=8, p=1
   return bytesToHex(new Uint8Array(out));
 }
 
 module.exports = {
   keccak256,
-  hashMessage,
   sha256,
   sha512,
   ripemd160,

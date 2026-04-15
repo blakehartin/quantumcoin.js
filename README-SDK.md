@@ -303,7 +303,6 @@ Wrapper returned by `provider.sendTransaction(...)` and `provider.getTransaction
 - `data: string`
 - `value: bigint`
 - `gasLimit: bigint | null`
-- `gasPrice: bigint | null`
 - `chainId: number | null`
 - `blockNumber: number | null`
 - `txType: number | null` — Transaction type (e.g. `1` for a standard transfer)
@@ -375,7 +374,6 @@ Core signing implementation.
 
 **Methods**
 - `getAddress(): Promise<string>`
-- `signMessageSync(message: string | Uint8Array): string`
 - `signTransaction(tx: TransactionRequest): Promise<string>`
 - `sendTransaction(tx: TransactionRequest): Promise<TransactionResponse>`
 
@@ -387,7 +385,6 @@ User-facing wallet class.
 
 **Static methods**
 - `Wallet.createRandom(provider?: AbstractProvider, keyType?: number | null): Wallet` — `keyType`: `null`/`3` (default, hybrid compact) or `5` (hybrid5)
-- `Wallet.createRandomSeed(keyType?: number | null): string[]` — returns seed words (32 for keyType 3, 36 for keyType 5); pass to `fromPhrase` to open
 - `Wallet.fromSeed(seed: number[], provider?: AbstractProvider): Wallet` — opens wallet from raw seed bytes (64/72/96 length)
 - `Wallet.fromEncryptedJsonSync(json: string, password: string, provider?: AbstractProvider): Wallet`
 - `Wallet.fromPhrase(phrase: string | string[], provider?: AbstractProvider): Wallet`
@@ -561,8 +558,6 @@ From `quantumcoin`:
 - `getCreateAddress({ from, nonce }): string`
 - `getCreate2Address(from: string, salt: string, initCodeHash: string): string`
 - `computeAddress(publicKey: string|Uint8Array): string`
-- `verifyMessage(message: string|Uint8Array, signature: string): string`
-- `recoverAddress(message: string|Uint8Array, signature: string): string`
 
 **Example(s):**
 - `examples/wallet-offline.js`

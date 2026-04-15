@@ -50,13 +50,11 @@ async function main() {
 
   const txReq = await contract.populateTransaction.setValue(123, { gasLimit: 200000 });
 
-  // True offline signing: explicitly set nonce + chainId (+ gasPrice if desired)
   const nonce = await provider.getTransactionCount(offlineWallet.address, "pending");
   const rawTx = await offlineWallet.signTransaction({
     ...txReq,
     nonce,
     chainId,
-    gasPrice: 1n,
   });
 
   console.log("Unsigned txReq:", txReq);

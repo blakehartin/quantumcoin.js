@@ -41,9 +41,11 @@
      global.fetch = async (_url, init) => {
        const body = JSON.parse(init.body);
        seen.push(body.params);
+       const responseBody = JSON.stringify({ jsonrpc: "2.0", id: body.id, result: "0x1" });
        return {
          ok: true,
-         json: async () => ({ jsonrpc: "2.0", id: body.id, result: "0x1" }),
+         text: async () => responseBody,
+         json: async () => JSON.parse(responseBody),
        };
      };
  

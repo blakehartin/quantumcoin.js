@@ -4,7 +4,7 @@
  */
 
 import { Initialize } from "../config";
-import { Wallet, verifyMessage } from "..";
+import { Wallet } from "..";
 import { logExample, logAddress } from "../test/verbose-logger";
 
 async function walletOffline(): Promise<void> {
@@ -14,14 +14,6 @@ async function walletOffline(): Promise<void> {
   const wallet = Wallet.createRandom();
   console.log("Wallet address:", wallet.address);
   logAddress("wallet", wallet.address);
-
-  const msg = "Hello, QuantumCoin!";
-  const sig = wallet.signMessageSync(msg);
-  console.log("Signature:", sig.slice(0, 18) + "...");
-
-  const recovered = verifyMessage(msg, sig);
-  console.log("Recovered address:", recovered);
-  logAddress("recovered", recovered);
 
   const json = wallet.encryptSync("mySecurePassword123");
   console.log("Encrypted wallet JSON length:", json.length);

@@ -106,10 +106,18 @@ function getConfig() {
     return _config;
 }
 
-// Export Config class and Initialize function
+/**
+ * Returns the pending initialization promise, or null if Initialize() has not been called.
+ * @return {Promise<boolean>|null}
+ */
+function getInitializationPromise() {
+    return _initializationPromise;
+}
+
 module.exports = {
     Config,
     Initialize,
     isInitialized,
-    getConfig
+    getConfig,
+    getInitializationPromise
 };

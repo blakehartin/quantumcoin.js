@@ -6,7 +6,11 @@ const { AbstractProvider } = require("./provider");
 const { makeError } = require("../errors");
 const { Config, getConfig, isInitialized } = require("../../config");
 
-let _rpcId = 1;
+const MAX_RESPONSE_SIZE = 16 * 1024 * 1024;
+
+function _bigIntReplacer(_key, value) {
+  return typeof value === "bigint" ? "0x" + value.toString(16) : value;
+}
 
 class JsonRpcProvider extends AbstractProvider {
   /**
@@ -15,11 +19,11 @@ class JsonRpcProvider extends AbstractProvider {
    */
   constructor(url, chainId) {
     super();
-    // If not provided, attempt to use initialized config.js defaults.
     const active = isInitialized() ? getConfig() : null;
     const cfg = active || new Config();
     this.url = url || cfg.rpcEndpoint;
     this.chainId = chainId == null ? cfg.chainId : chainId;
+    this._rpcId = 1;
   }
 
   /**
@@ -29,13 +33,13 @@ class JsonRpcProvider extends AbstractProvider {
    * @returns {Promise<any>}
    */
   async _perform(method, params) {
-    const id = _rpcId++;
+    const id = this._rpcId++;
     const body = JSON.stringify({
       jsonrpc: "2.0",
       id,
       method,
       params: params || [],
-    });
+    }, _bigIntReplacer);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000);
@@ -46,7 +50,13 @@ class JsonRpcProvider extends AbstractProvider {
         body,
         signal: controller.signal,
       });
-      const json = await resp.json().catch(() => null);
+      const text = await resp.text().catch(() => null);
+      if (text && text.length > MAX_RESPONSE_SIZE) {
+        throw makeError("JSON-RPC response too large", "UNKNOWN_ERROR", {
+          method, url: this.url, size: text.length, limit: MAX_RESPONSE_SIZE,
+        });
+      }
+      const json = text ? (() => { try { return JSON.parse(text); } catch { return null; } })() : null;
       if (!resp.ok) {
         throw makeError("JSON-RPC HTTP error", "UNKNOWN_ERROR", {
           status: resp.status,

@@ -23,7 +23,6 @@ declare const _exports: {
     encodeRlp(value: any): string;
     decodeRlp(data: string): any;
     keccak256(data: string | Uint8Array): string;
-    hashMessage(message: string | Uint8Array): string;
     sha256(data: string | Uint8Array): string;
     sha512(data: string | Uint8Array): string;
     ripemd160(data: string | Uint8Array): string;
@@ -70,8 +69,6 @@ declare const _exports: {
     }): string;
     getCreate2Address(from: string, salt: string, initCodeHash: string): string;
     computeAddress(key: string | Uint8Array): string;
-    verifyMessage(message: string | Uint8Array, signature: string): string;
-    recoverAddress(message: string | Uint8Array, signature: string): string;
     Interface: typeof import("./abi/interface").Interface;
     AbiCoder: typeof import("./abi/interface").AbiCoder;
     Fragment: typeof import("./abi/fragments").Fragment;

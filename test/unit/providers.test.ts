@@ -39,9 +39,11 @@ describe("JsonRpcProvider", () => {
     (globalThis as unknown as { fetch: typeof fetch }).fetch = async (_url: string, init: RequestInit) => {
       const body = JSON.parse(init.body as string);
       seen.push(body.params);
+      const responseBody = JSON.stringify({ jsonrpc: "2.0", id: body.id, result: "0x1" });
       return {
         ok: true,
-        json: async () => ({ jsonrpc: "2.0", id: body.id, result: "0x1" }),
+        text: async () => responseBody,
+        json: async () => JSON.parse(responseBody),
       } as Response;
     };
 

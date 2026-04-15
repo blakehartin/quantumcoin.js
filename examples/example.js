@@ -47,11 +47,6 @@ async function main() {
   const wallet = qc.Wallet.createRandom();
   console.log("Random wallet address:", wallet.address);
   logAddress("random_wallet", wallet.address);
-  const sig = wallet.signMessageSync("Hello, QuantumCoin!");
-  console.log("Signed message signature:", sig.slice(0, 18) + "...");
-  const recovered = qc.verifyMessage("Hello, QuantumCoin!", sig);
-  console.log("Recovered address:", recovered);
-  logAddress("recovered", recovered);
 
   const encrypted = wallet.encryptSync("mySecurePassword123");
   console.log("Encrypted wallet JSON length:", encrypted.length);

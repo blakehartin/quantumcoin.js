@@ -16,12 +16,18 @@ const jsAbi = require("./js-abi-coder");
 
 function _requireInitialized() {
   // eslint-disable-next-line global-require
-  const { isInitialized } = require("../../config");
-  if (!isInitialized()) {
-    throw makeError("QuantumCoin SDK not initialized. Call Initialize() first.", "UNKNOWN_ERROR", {
-      operation: "abi",
-    });
+  const { isInitialized, getInitializationPromise } = require("../../config");
+  if (isInitialized()) return;
+  if (getInitializationPromise() != null) {
+    throw makeError(
+      "QuantumCoin SDK is still initializing. Await the Initialize() promise before using SDK methods.",
+      "UNKNOWN_ERROR",
+      { operation: "requireInitialized" },
+    );
   }
+  throw makeError("QuantumCoin SDK not initialized. Call Initialize() first.", "UNKNOWN_ERROR", {
+    operation: "abi",
+  });
 }
 
 function _sanitizeArg(value) {
@@ -134,8 +140,8 @@ function _uint256ToFixedBytesHex(type, value) {
   if (value == null) return value;
 
   const bi = typeof value === "bigint" ? value : BigInt(value);
+  if (bi >= (1n << 256n)) throw makeError("value exceeds uint256", "INVALID_ARGUMENT", { value: bi.toString() });
   let hex = bi.toString(16);
-  if (hex.length > 64) hex = hex.slice(-64);
   hex = hex.padStart(64, "0");
   // bytesN is the first N bytes (right-padded in the 32-byte word).
   return normalizeHex("0x" + hex.slice(0, n * 2));

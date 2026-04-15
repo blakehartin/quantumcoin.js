@@ -5,12 +5,6 @@
  */
 export function keccak256(data: string | Uint8Array): string;
 /**
- * EIP-191 personal-sign message digest (ethers.js hashMessage pattern).
- * @param {string|Uint8Array} message
- * @returns {string}
- */
-export function hashMessage(message: string | Uint8Array): string;
-/**
  * sha256 hash of BytesLike.
  * @param {string|Uint8Array} data
  * @returns {string}

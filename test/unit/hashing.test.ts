@@ -54,17 +54,6 @@ describe("Hashing", () => {
     assert.ok(typeof out === "string" && out.startsWith("0x") && out.length === 66);
   });
 
-  it("hashMessage follows EIP-191 / ethers.js pattern (prefix + length + message, keccak256)", () => {
-    // Known digest from ethers.js hashMessage("Hello World")
-    const expectedHelloWorld = "0xa1de988600a42c4b4ab089b619297c17d53cffae5d5120d82d8a92d0bb3b78f2";
-    assert.equal(qc.hashMessage("Hello World"), expectedHelloWorld);
-    // String and UTF-8 bytes of same content produce the same digest
-    assert.equal(qc.hashMessage("Hello World"), qc.hashMessage(qc.toUtf8Bytes("Hello World")));
-    // Empty message
-    const emptyDigest = qc.hashMessage("");
-    assert.ok(emptyDigest.startsWith("0x") && emptyDigest.length === 66);
-  });
-
   it("scryptSync with N=262144, r=8, p=1 produces expected hardcoded output", () => {
     const pw = qc.toUtf8Bytes("password");
     const salt = qc.toUtf8Bytes("salt");

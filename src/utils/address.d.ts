@@ -56,17 +56,3 @@ export function getCreate2Address(from: string, salt: string, initCodeHash: stri
  * @returns {string}
  */
 export function computeAddress(key: string | Uint8Array): string;
-/**
- * Verifies a message signature and recovers the address.
- * @param {string|Uint8Array} message
- * @param {string} signature Hex string signature
- * @returns {string}
- */
-export function verifyMessage(message: string | Uint8Array, signature: string): string;
-/**
- * Recovers the address from a message signature.
- * @param {string|Uint8Array} message
- * @param {string} signature Hex string signature
- * @returns {string}
- */
-export function recoverAddress(message: string | Uint8Array, signature: string): string;

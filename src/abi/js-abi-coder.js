@@ -13,6 +13,8 @@ const { makeError } = require("../errors");
 const { normalizeHex, strip0x, arrayify, bytesToHex, utf8ToBytes, bytesToUtf8 } = require("../internal/hex");
 const { id } = require("../utils/hashing");
 
+const MAX_ABI_DEPTH = 16;
+
 function _isArrayType(type) {
   return typeof type === "string" && type.endsWith("]");
 }
@@ -115,8 +117,8 @@ function _concat(parts) {
 function _u256ToWord(bi) {
   let x = bi;
   if (x < 0n) throw new Error("uint must be non-negative");
+  if (x >= (1n << 256n)) throw makeError("value exceeds uint256", "INVALID_ARGUMENT", { value: x.toString() });
   let hex = x.toString(16);
-  if (hex.length > 64) hex = hex.slice(-64);
   hex = hex.padStart(64, "0");
   return arrayify("0x" + hex);
 }
@@ -204,7 +206,8 @@ function _tupleValues(components, value) {
   return [];
 }
 
-function encodeTupleLike(params, values) {
+function encodeTupleLike(params, values, depth) {
+  if (depth == null) depth = 0;
   const ps = Array.isArray(params) ? params : [];
   const vs = Array.isArray(values) ? values : [];
 
@@ -221,19 +224,21 @@ function encodeTupleLike(params, values) {
     const p = ps[i];
     const v = vs[i];
     if (_isDynamicType(p)) {
-      const encTail = encodeParam(p, v);
+      const encTail = encodeParam(p, v, depth);
       headParts.push(_u256ToWord(BigInt(headSize + tailOffset)));
       tailParts.push(encTail);
       tailOffset += encTail.length;
     } else {
-      headParts.push(encodeParam(p, v));
+      headParts.push(encodeParam(p, v, depth));
     }
   }
 
   return _concat([...headParts, ...tailParts]);
 }
 
-function encodeParam(param, value) {
+function encodeParam(param, value, depth) {
+  if (depth == null) depth = 0;
+  if (depth > MAX_ABI_DEPTH) throw makeError("ABI encoding: maximum nesting depth exceeded", "INVALID_ARGUMENT", {});
   const type = String(param && param.type ? param.type : "");
 
   if (_isArrayType(type)) {
@@ -243,20 +248,19 @@ function encodeParam(param, value) {
 
     if (_isDynamicArray(type)) {
       const lenWord = _u256ToWord(BigInt(arr.length));
-      const elems = encodeTupleLike(Array.from({ length: arr.length }).map(() => innerParam), arr);
+      const elems = encodeTupleLike(Array.from({ length: arr.length }).map(() => innerParam), arr, depth + 1);
       return _concat([lenWord, elems]);
     }
 
-    // fixed array
     const n = _fixedArrayLength(type);
-    const elems = encodeTupleLike(Array.from({ length: n }).map(() => innerParam), arr.slice(0, n));
+    const elems = encodeTupleLike(Array.from({ length: n }).map(() => innerParam), arr.slice(0, n), depth + 1);
     return elems;
   }
 
   if (type === "tuple") {
     const comps = Array.isArray(param.components) ? param.components : [];
     const vals = _tupleValues(comps, value);
-    return encodeTupleLike(comps, vals);
+    return encodeTupleLike(comps, vals, depth + 1);
   }
 
   if (_isUint(type)) {
@@ -358,10 +362,10 @@ function _decodeString(data, baseOffset) {
   return bytesToUtf8(out);
 }
 
-function decodeTupleLike(params, data, baseOffset) {
+function decodeTupleLike(params, data, baseOffset, depth) {
+  if (depth == null) depth = 0;
   const ps = Array.isArray(params) ? params : [];
 
-  // Compute head size for this tuple-like block.
   const headWords = ps.reduce((a, p) => a + (_isDynamicType(p) ? 1 : _staticWords(p)), 0);
   const headSize = headWords * 32;
 
@@ -373,20 +377,21 @@ function decodeTupleLike(params, data, baseOffset) {
     const p = ps[i];
     if (_isDynamicType(p)) {
       const rel = _readWordAsNumber(data, baseOffset + headOff);
-      values.push(decodeParam(p, data, baseOffset + rel));
+      values.push(decodeParam(p, data, baseOffset + rel, depth));
       headOff += 32;
     } else {
-      values.push(decodeParam(p, data, baseOffset + headOff));
+      values.push(decodeParam(p, data, baseOffset + headOff, depth));
       headOff += _staticWords(p) * 32;
     }
   }
 
-  // Ignore headSize; decodeParam consumes offsets itself.
   void headSize;
   return values;
 }
 
-function decodeParam(param, data, offset) {
+function decodeParam(param, data, offset, depth) {
+  if (depth == null) depth = 0;
+  if (depth > MAX_ABI_DEPTH) throw makeError("ABI decoding: maximum nesting depth exceeded", "INVALID_ARGUMENT", {});
   const type = String(param && param.type ? param.type : "");
 
   if (_isArrayType(type)) {
@@ -395,17 +400,17 @@ function decodeParam(param, data, offset) {
 
     if (_isDynamicArray(type)) {
       const len = _readWordAsNumber(data, offset);
-      const elems = decodeTupleLike(Array.from({ length: len }).map(() => innerParam), data, offset + 32);
+      const elems = decodeTupleLike(Array.from({ length: len }).map(() => innerParam), data, offset + 32, depth + 1);
       return elems;
     }
 
     const n = _fixedArrayLength(type);
-    return decodeTupleLike(Array.from({ length: n }).map(() => innerParam), data, offset);
+    return decodeTupleLike(Array.from({ length: n }).map(() => innerParam), data, offset, depth + 1);
   }
 
   if (type === "tuple") {
     const comps = Array.isArray(param.components) ? param.components : [];
-    const vals = decodeTupleLike(comps, data, offset);
+    const vals = decodeTupleLike(comps, data, offset, depth + 1);
     const out = {};
     for (let i = 0; i < comps.length; i++) {
       const c = comps[i];

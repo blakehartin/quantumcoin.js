@@ -20,7 +20,6 @@ const { normalizeHex, isHexString } = require("../internal/hex");
  * @property {bigint|string|number=} value
  * @property {string=} data
  * @property {bigint|string|number=} gasLimit
- * @property {bigint|string|number=} gasPrice
  * @property {number=} nonce
  * @property {number=} chainId
  * @property {string=} remarks Optional remark field (hex, max 32 bytes)
@@ -39,7 +38,7 @@ const { normalizeHex, isHexString } = require("../internal/hex");
 function _hexToBigInt(hex) {
   if (typeof hex === "bigint") return hex;
   if (typeof hex === "number") return BigInt(hex);
-  // JSON-RPC "quantity" values may be odd-length (e.g. "0x0", "0x1").
+  if (hex === "0x" || hex === "0X") return 0n;
   assertArgument(typeof hex === "string" && /^0x[0-9a-fA-F]+$/.test(hex), "invalid hex quantity", "hex", hex);
   return BigInt(hex);
 }
@@ -139,7 +138,6 @@ class TransactionResponse {
     this.data = tx.input || tx.data || "0x";
     this.value = tx.value != null ? _hexToBigInt(tx.value) : 0n;
     this.gasLimit = tx.gas != null ? _hexToBigInt(tx.gas) : null;
-    this.gasPrice = tx.gasPrice != null ? _hexToBigInt(tx.gasPrice) : null;
     this.chainId = tx.chainId != null ? _hexToNumber(tx.chainId) : null;
     this.blockNumber = tx.blockNumber != null ? _hexToNumber(tx.blockNumber) : null;
     this.txType = tx.type != null ? _hexToNumber(tx.type) : null;
