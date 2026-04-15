@@ -303,7 +303,6 @@ Wrapper returned by `provider.sendTransaction(...)` and `provider.getTransaction
 - `data: string`
 - `value: bigint`
 - `gasLimit: bigint | null`
-- `gasPrice: bigint | null`
 - `chainId: number | null`
 - `blockNumber: number | null`
 - `txType: number | null` — Transaction type (e.g. `1` for a standard transfer)
@@ -375,7 +374,6 @@ Core signing implementation.
 
 **Methods**
 - `getAddress(): Promise<string>`
-- `signMessageSync(message: string | Uint8Array): string`
 - `signTransaction(tx: TransactionRequest): Promise<string>`
 - `sendTransaction(tx: TransactionRequest): Promise<TransactionResponse>`
 
@@ -560,8 +558,6 @@ From `quantumcoin`:
 - `getCreateAddress({ from, nonce }): string`
 - `getCreate2Address(from: string, salt: string, initCodeHash: string): string`
 - `computeAddress(publicKey: string|Uint8Array): string`
-- `verifyMessage(message: string|Uint8Array, signature: string): string`
-- `recoverAddress(message: string|Uint8Array, signature: string): string`
 
 **Example(s):**
 - `examples/wallet-offline.js`

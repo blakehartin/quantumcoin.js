@@ -8,18 +8,22 @@
 const qcsdk = require("quantum-coin-js-sdk");
 const { assertArgument, makeError } = require("../errors");
 const { arrayify, bytesToHex, hexToBytes, isHexString, normalizeHex } = require("../internal/hex");
-const { hashMessage } = require("./hashing");
+
 
 function _requireInitialized() {
-  // The spec requires Initialize() to be called before using the SDK.
-  // config.js tracks initialization state for this package.
   // eslint-disable-next-line global-require
-  const { isInitialized } = require("../../config");
-  if (!isInitialized()) {
-    throw makeError("QuantumCoin SDK not initialized. Call Initialize() first.", "UNKNOWN_ERROR", {
-      operation: "address-utils",
-    });
+  const { isInitialized, getInitializationPromise } = require("../../config");
+  if (isInitialized()) return;
+  if (getInitializationPromise() != null) {
+    throw makeError(
+      "QuantumCoin SDK is still initializing. Await the Initialize() promise before using SDK methods.",
+      "UNKNOWN_ERROR",
+      { operation: "requireInitialized" },
+    );
   }
+  throw makeError("QuantumCoin SDK not initialized. Call Initialize() first.", "UNKNOWN_ERROR", {
+    operation: "address-utils",
+  });
 }
 
 /**
@@ -127,45 +131,6 @@ function computeAddress(key) {
   return normalizeHex(out);
 }
 
-function _digestMessage(message) {
-  const digestHex = hashMessage(message);
-  const digest = Array.from(hexToBytes(digestHex));
-  assertArgument(digest.length === 32, "invalid digest length", "digest", digest.length);
-  return digest;
-}
-
-function _signatureToBytes(signature) {
-  assertArgument(typeof signature === "string", "signature must be a hex string", "signature", signature);
-  assertArgument(isHexString(signature), "invalid signature hex", "signature", signature);
-  return Array.from(hexToBytes(signature));
-}
-
-/**
- * Verifies a message signature and recovers the address.
- * @param {string|Uint8Array} message
- * @param {string} signature Hex string signature
- * @returns {string}
- */
-function verifyMessage(message, signature) {
-  return recoverAddress(message, signature);
-}
-
-/**
- * Recovers the address from a message signature.
- * @param {string|Uint8Array} message
- * @param {string} signature Hex string signature
- * @returns {string}
- */
-function recoverAddress(message, signature) {
-  _requireInitialized();
-  const digest = _digestMessage(message);
-  const sigBytes = _signatureToBytes(signature);
-  const pubHex = qcsdk.publicKeyFromSignature(digest, sigBytes);
-  if (typeof pubHex !== "string") throw makeError("publicKeyFromSignature failed", "UNKNOWN_ERROR", {});
-  const addr = computeAddress(pubHex);
-  return addr;
-}
-
 module.exports = {
   isAddress,
   getAddress,
@@ -175,7 +140,5 @@ module.exports = {
   getCreateAddress,
   getCreate2Address,
   computeAddress,
-  verifyMessage,
-  recoverAddress,
 };
 

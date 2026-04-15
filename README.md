@@ -44,14 +44,12 @@ console.log(await provider.getBlockNumber());
 ## Wallet (offline + online)
 
 ```js
-const { Wallet, verifyMessage } = require("quantumcoin");
+const { Wallet } = require("quantumcoin");
 const { Initialize } = require("quantumcoin/config");
 
 await Initialize(null);
 
 const wallet = Wallet.createRandom();
-const sig = wallet.signMessageSync("Hello, QuantumCoin!");
-console.log(verifyMessage("Hello, QuantumCoin!", sig));
 
 const encrypted = wallet.encryptSync("mySecurePassword123");
 const restored = Wallet.fromEncryptedJsonSync(encrypted, "mySecurePassword123");

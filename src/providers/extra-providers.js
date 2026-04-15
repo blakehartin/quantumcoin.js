@@ -12,8 +12,12 @@ const net = require("node:net");
 const { JsonRpcSigner } = require("../wallet/wallet");
 const { normalizeHex, isHexString } = require("../internal/hex");
 
-let _wsRpcId = 1;
-let _ipcRpcId = 1;
+const MAX_RESPONSE_SIZE = 16 * 1024 * 1024;
+const MAX_IPC_BUFFER = 16 * 1024 * 1024;
+
+function _bigIntReplacer(_key, value) {
+  return typeof value === "bigint" ? "0x" + value.toString(16) : value;
+}
 
 /**
  * Extract the first complete JSON object from a stream buffer.
@@ -85,6 +89,7 @@ class WebSocketProvider extends AbstractProvider {
     }
     this.url = url.trim();
     this.chainId = chainId == null ? 123123 : chainId;
+    this._wsRpcId = 1;
 
     /** @type {any|null} */
     this._ws = null;
@@ -168,6 +173,7 @@ class WebSocketProvider extends AbstractProvider {
       const onMessage = (event) => {
         const data = event && event.data != null ? event.data : "";
         const text = typeof data === "string" ? data : data.toString();
+        if (text.length > MAX_RESPONSE_SIZE) return;
         let msg;
         try {
           msg = JSON.parse(text);
@@ -224,8 +230,8 @@ class WebSocketProvider extends AbstractProvider {
       throw makeError("WebSocket not connected", "UNKNOWN_ERROR", { url: this.url, method });
     }
 
-    const id = _wsRpcId++;
-    const body = JSON.stringify({ jsonrpc: "2.0", id, method, params: params || [] });
+    const id = this._wsRpcId++;
+    const body = JSON.stringify({ jsonrpc: "2.0", id, method, params: params || [] }, _bigIntReplacer);
 
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -267,6 +273,7 @@ class IpcSocketProvider extends AbstractProvider {
       throw makeError("missing IPC path", "INVALID_ARGUMENT", { path });
     }
     this.path = path;
+    this._ipcRpcId = 1;
   }
 
   /**
@@ -275,14 +282,14 @@ class IpcSocketProvider extends AbstractProvider {
    * @returns {Promise<any>}
    */
   async _perform(method, params) {
-    const id = _ipcRpcId++;
+    const id = this._ipcRpcId++;
     const body =
       JSON.stringify({
         jsonrpc: "2.0",
         id,
         method,
         params: params || [],
-      }) + "\n";
+      }, _bigIntReplacer) + "\n";
 
     return new Promise((resolve, reject) => {
       /** @type {boolean} */
@@ -336,6 +343,13 @@ class IpcSocketProvider extends AbstractProvider {
 
       socket.on("data", (chunk) => {
         buffer += String(chunk);
+
+        if (buffer.length > MAX_IPC_BUFFER) {
+          finish(makeError("IPC response too large", "UNKNOWN_ERROR", {
+            method, path: this.path, size: buffer.length, limit: MAX_IPC_BUFFER,
+          }));
+          return;
+        }
 
         // Fast path: newline-delimited JSON responses.
         while (buffer.includes("\n")) {

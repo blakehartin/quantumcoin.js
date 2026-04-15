@@ -10,22 +10,50 @@
 
 const qcsdk = require("quantum-coin-js-sdk");
 const { JsonRpcProvider } = require("../providers/json-rpc-provider");
-const { assertArgument, makeError } = require("../errors");
+const { assertArgument, assertSecretArgument, makeError } = require("../errors");
 const { arrayify, bytesToHex, hexToBytes, isHexString, normalizeHex } = require("../internal/hex");
-const { hashMessage } = require("../utils/hashing");
 const { getAddress } = require("../utils/address");
 const { WeiPerEther } = require("../constants");
 
 function _requireInitialized() {
   // eslint-disable-next-line global-require
-  const { isInitialized } = require("../../config");
-  if (!isInitialized()) {
-    throw makeError("QuantumCoin SDK not initialized. Call Initialize() first.", "UNKNOWN_ERROR", { operation: "wallet" });
+  const { isInitialized, getInitializationPromise } = require("../../config");
+  if (isInitialized()) return;
+  if (getInitializationPromise() != null) {
+    throw makeError(
+      "QuantumCoin SDK is still initializing. Await the Initialize() promise before using SDK methods.",
+      "UNKNOWN_ERROR",
+      { operation: "requireInitialized" },
+    );
   }
+  throw makeError("QuantumCoin SDK not initialized. Call Initialize() first.", "UNKNOWN_ERROR", { operation: "wallet" });
 }
 
 function _bytesToNumberArray(bytes) {
   return Array.from(bytes);
+}
+
+const _maxSafeInt = 0x1fffffffffffffn; // 2^53 - 1
+
+function _getBigInt(value, name) {
+  if (typeof value === "bigint") return value;
+  if (typeof value === "number") {
+    assertArgument(Number.isInteger(value), "underflow", name, value);
+    assertArgument(value >= -Number(_maxSafeInt) && value <= Number(_maxSafeInt), "overflow", name, value);
+    return BigInt(value);
+  }
+  if (typeof value === "string") {
+    if (value === "0x" || value === "0X") return 0n;
+    try { return BigInt(value); }
+    catch { assertArgument(false, "invalid BigNumberish string", name, value); }
+  }
+  assertArgument(false, "invalid BigNumberish", name, value);
+}
+
+function _getNumber(value, name) {
+  const bi = _getBigInt(value, name);
+  assertArgument(bi >= -_maxSafeInt && bi <= _maxSafeInt, "overflow", name, value);
+  return Number(bi);
 }
 
 /**
@@ -37,8 +65,17 @@ class SigningKey {
    * @param {Uint8Array} publicKeyBytes
    */
   constructor(privateKeyBytes, publicKeyBytes) {
-    this.privateKeyBytes = new Uint8Array(privateKeyBytes);
+    Object.defineProperty(this, "privateKeyBytes", {
+      enumerable: false,
+      configurable: false,
+      writable: false,
+      value: new Uint8Array(privateKeyBytes),
+    });
     this.publicKeyBytes = new Uint8Array(publicKeyBytes);
+  }
+
+  toJSON() {
+    return {};
   }
 }
 
@@ -71,14 +108,25 @@ class BaseWallet extends AbstractSigner {
   constructor(signingKey, provider, precomputed, qcWallet) {
     super(provider || null);
     _requireInitialized();
-    this.signingKey = signingKey;
-    this._qcWallet = qcWallet || null;
+
+    Object.defineProperty(this, "signingKey", {
+      enumerable: false,
+      configurable: false,
+      writable: false,
+      value: signingKey,
+    });
+    Object.defineProperty(this, "_qcWallet", {
+      enumerable: false,
+      configurable: true,
+      writable: true,
+      value: qcWallet || null,
+    });
 
     /** @type {string} */
     this.address = precomputed?.address || "";
 
     Object.defineProperty(this, "privateKey", {
-      enumerable: true,
+      enumerable: false,
       get: () => bytesToHex(this.signingKey.privateKeyBytes),
     });
 
@@ -87,53 +135,25 @@ class BaseWallet extends AbstractSigner {
       get: () => bytesToHex(this.signingKey.publicKeyBytes),
     });
 
-    /** @type {string|null} */
-    this._seed = null;
+    Object.defineProperty(this, "_seed", {
+      enumerable: false,
+      configurable: true,
+      writable: true,
+      value: null,
+    });
 
     Object.defineProperty(this, "seed", {
-      enumerable: true,
+      enumerable: false,
       get: () => this._seed,
     });
   }
 
-  async getAddress() {
-    return this.address;
+  toJSON() {
+    return { address: this.address };
   }
 
-  /**
-   * Sign a message synchronously.
-   * Signature format: combined publicKey+signature as a hex string.
-   * @param {string|Uint8Array} message
-   * @returns {string}
-   */
-  signMessageSync(message) {
-    _requireInitialized();
-    const digestHex = hashMessage(message);
-    const digest = hexToBytes(digestHex);
-    const signResult = qcsdk.sign(this.signingKey.privateKeyBytes, digest, null);
-    if (signResult.resultCode !== 0) {
-      throw makeError("sign failed", "UNKNOWN_ERROR", { resultCode: signResult.resultCode });
-    }
-    const sigBytes = signResult.signature;
-    if (!sigBytes) throw makeError("sign returned no signature", "UNKNOWN_ERROR", {});
-    const sigArr = Array.from(sigBytes instanceof Uint8Array ? sigBytes : sigBytes);
-    let combined = qcsdk.combinePublicKeySignature(
-      _bytesToNumberArray(this.signingKey.publicKeyBytes),
-      sigArr,
-    );
-    if (combined != null && typeof combined === "object") {
-      if (typeof combined.String === "function") combined = combined.String();
-      else if (combined instanceof Uint8Array) combined = bytesToHex(combined);
-      else if (Array.isArray(combined)) combined = bytesToHex(new Uint8Array(combined));
-      else if (typeof combined.length === "number" && combined.length >= 0) combined = bytesToHex(new Uint8Array(Array.from(combined)));
-    }
-    if (combined == null || typeof combined !== "string") {
-      throw makeError("combinePublicKeySignature failed (SDK may not support this key type for message signing)", "UNKNOWN_ERROR", {
-        combinedType: typeof combined,
-        sigLength: sigArr.length,
-      });
-    }
-    return normalizeHex(combined);
+  async getAddress() {
+    return this.address;
   }
 
   /**
@@ -146,27 +166,8 @@ class BaseWallet extends AbstractSigner {
     assertArgument(tx && typeof tx === "object", "invalid tx", "tx", tx);
 
     const toAddress = tx.to == null ? null : getAddress(tx.to);
-    const valueInWei =
-      tx.value == null
-        ? 0n
-        : typeof tx.value === "bigint"
-          ? tx.value
-          : typeof tx.value === "number"
-            ? BigInt(tx.value)
-            : typeof tx.value === "string"
-              ? BigInt(tx.value.startsWith("0x") ? tx.value : tx.value)
-              : 0n;
-
-    const gasLimit =
-      tx.gasLimit == null
-        ? 21000
-        : typeof tx.gasLimit === "bigint"
-          ? Number(tx.gasLimit)
-          : typeof tx.gasLimit === "number"
-            ? tx.gasLimit
-            : typeof tx.gasLimit === "string"
-              ? Number(BigInt(tx.gasLimit))
-              : 21000;
+    const valueInWei = tx.value == null ? 0n : _getBigInt(tx.value, "tx.value");
+    const gasLimit = tx.gasLimit == null ? 21000 : _getNumber(tx.gasLimit, "tx.gasLimit");
 
     const data = tx.data == null ? null : normalizeHex(tx.data);
     const remarks = tx.remarks == null ? null : normalizeHex(tx.remarks);
@@ -321,7 +322,10 @@ class Wallet extends BaseWallet {
     if (this._seed != null) {
       return Wallet.encryptSeedSync(hexToBytes(this._seed), password);
     }
-    const pw = typeof password === "string" ? password : Buffer.from(arrayify(password)).toString("utf8");
+    const pw = typeof password === "string"
+      ? password.normalize("NFC")
+      : Buffer.from(arrayify(password)).toString("utf8").normalize("NFC");
+    assertSecretArgument(pw.length >= 12, "password must be at least 12 characters", "password");
     const json = qcsdk.serializeEncryptedWallet(this._qcWallet, pw);
     if (typeof json !== "string") throw makeError("serializeEncryptedWallet failed", "UNKNOWN_ERROR", {});
     return json;
@@ -341,7 +345,10 @@ class Wallet extends BaseWallet {
     assertArgument(Array.isArray(seedArr), "seed must be an array of numbers or Uint8Array", "seed", seed);
     const allowedLengths = [64, 72, 96];
     assertArgument(allowedLengths.includes(seedArr.length), "seed must be 64, 72, or 96 bytes", "seed", seedArr.length);
-    const pw = typeof password === "string" ? password : Buffer.from(arrayify(password)).toString("utf8");
+    const pw = typeof password === "string"
+      ? password.normalize("NFC")
+      : Buffer.from(arrayify(password)).toString("utf8").normalize("NFC");
+    assertSecretArgument(pw.length >= 12, "password must be at least 12 characters", "password");
     const json = qcsdk.serializeSeedAsEncryptedWallet(seedArr, pw);
     if (typeof json !== "string") throw makeError("serializeSeedAsEncryptedWallet failed", "UNKNOWN_ERROR", {});
     return json;
@@ -371,7 +378,10 @@ class Wallet extends BaseWallet {
    * @returns {Wallet}
    */
   connect(provider) {
-    return new Wallet(this.signingKey, provider);
+    const w = new Wallet(this.signingKey, provider);
+    w._qcWallet = this._qcWallet;
+    w._seed = this._seed;
+    return w;
   }
 
   /**
@@ -463,8 +473,8 @@ class Wallet extends BaseWallet {
     _requireInitialized();
     const privBytes = typeof privateKey === "string" ? hexToBytes(privateKey) : arrayify(privateKey);
     const pubBytes = typeof publicKey === "string" ? hexToBytes(publicKey) : arrayify(publicKey);
-    assertArgument(privBytes.length > 0, "privateKey must not be empty", "privateKey", privateKey);
-    assertArgument(pubBytes.length > 0, "publicKey must not be empty", "publicKey", publicKey);
+    assertSecretArgument(privBytes.length > 0, "privateKey must not be empty", "privateKey");
+    assertSecretArgument(pubBytes.length > 0, "publicKey must not be empty", "publicKey");
 
     const privArr = _bytesToNumberArray(privBytes);
     const pubArr = _bytesToNumberArray(pubBytes);
@@ -487,15 +497,20 @@ class Wallet extends BaseWallet {
    * @returns {Wallet}
    */
   static _fromQcWallet(qcWallet, provider) {
-    // Preserve key material from quantum-coin-js-sdk Wallet.
-    // newWallet() returns Uint8Array keys; other constructors may return number[].
     const privSrc = qcWallet.privateKey;
     const pubSrc = qcWallet.publicKey;
 
+    if (!privSrc || (privSrc instanceof Uint8Array && privSrc.length === 0) || (Array.isArray(privSrc) && privSrc.length === 0)) {
+      throw makeError("qcWallet.privateKey is empty or missing", "UNKNOWN_ERROR", {});
+    }
+    if (!pubSrc || (pubSrc instanceof Uint8Array && pubSrc.length === 0) || (Array.isArray(pubSrc) && pubSrc.length === 0)) {
+      throw makeError("qcWallet.publicKey is empty or missing", "UNKNOWN_ERROR", {});
+    }
+
     const privBytes =
-      privSrc instanceof Uint8Array ? new Uint8Array(privSrc) : Uint8Array.from(Array.from(privSrc || []).map((n) => (Number(n) & 0xff)));
+      privSrc instanceof Uint8Array ? new Uint8Array(privSrc) : Uint8Array.from(Array.from(privSrc).map((n) => (Number(n) & 0xff)));
     const pubBytes =
-      pubSrc instanceof Uint8Array ? new Uint8Array(pubSrc) : Uint8Array.from(Array.from(pubSrc || []).map((n) => (Number(n) & 0xff)));
+      pubSrc instanceof Uint8Array ? new Uint8Array(pubSrc) : Uint8Array.from(Array.from(pubSrc).map((n) => (Number(n) & 0xff)));
     const key = new SigningKey(privBytes, pubBytes);
 
     const w = new Wallet(key, provider || null);

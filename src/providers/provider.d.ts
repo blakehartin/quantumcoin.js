@@ -5,7 +5,6 @@ export type TransactionRequest = {
     value?: (bigint | string | number) | undefined;
     data?: string | undefined;
     gasLimit?: (bigint | string | number) | undefined;
-    gasPrice?: (bigint | string | number) | undefined;
     nonce?: number | undefined;
     chainId?: number | undefined;
     /**
@@ -149,7 +148,6 @@ export class TransactionResponse {
     data: any;
     value: any;
     gasLimit: any;
-    gasPrice: any;
     chainId: number;
     blockNumber: number;
     txType: number | null;

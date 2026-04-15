@@ -380,7 +380,6 @@ Returns prefetched transaction objects (if available).
 - `value`: bigint | string - Value in wei
 - `data`: string - Transaction data (hex string)
 - `gasLimit`: bigint | string - Gas limit
-- `gasPrice`: bigint | string - Gas price
 - `nonce`: number - Transaction nonce
 - `chainId`: number - Chain ID
 - `remarks`: string | null - Optional hex string (including 0x) that represents a remark/comment. Maximum 32 bytes length (in bytes). Warning: do not store any sensitive information in this field as it will be public on the blockchain.
@@ -399,7 +398,6 @@ Returns prefetched transaction objects (if available).
 - `value`: bigint - Value in wei
 - `data`: string - Transaction data
 - `gasLimit`: bigint - Gas limit
-- `gasPrice`: bigint | null - Gas price
 - `nonce`: number - Nonce
 - `chainId`: number - Chain ID
 - `remarks`: string | null - Optional hex string (including 0x) that represents a remark/comment. Maximum 32 bytes length (in bytes). Warning: do not store any sensitive information in this field as it will be public on the blockchain.
@@ -713,12 +711,6 @@ constructor(privateKey: SigningKey, provider?: null | Provider)
 Returns the wallet address.
 - Returns: Address string
 
-#### `signMessageSync(message: string | Uint8Array): string`
-Returns the signature for message signed with this wallet (synchronous).
-- `message`: Message to sign (string or bytes)
-- Returns: Signature string
-- **Implementation**: Uses quantum-coin-js-sdk for message signing
-
 #### `signTransaction(tx: TransactionRequest): Promise<string>`
 Signs a transaction and returns the signed transaction data.
 - `tx`: Transaction request
@@ -837,7 +829,7 @@ Creates a wallet from a seed phrase.
 **Provider Usage**:
 - The provider is optional in the constructor. If not provided, `provider` will be `null`.
 - Methods that require blockchain access (`getBalance()`, `getTransactionCount()`, `sendTransaction()`) will throw an error if `provider` is `null`.
-- Methods that only require signing (`signTransaction()`, `signMessageSync()`, `signTypedData()`) can work without a provider.
+- Methods that only require signing (`signTransaction()`, `signTypedData()`) can work without a provider.
 - The provider can be set later using the `connect(provider)` method.
 
 **Methods**:
@@ -867,13 +859,6 @@ Signs a transaction and returns the signed transaction data.
 - `tx`: Transaction request
 - **Does not require provider**: Can sign transactions offline.
 - Note: The `remarks` field in TransactionRequest is optional and can be used to include a comment (max 32 bytes). Do not store sensitive information in remarks.
-
-#### `signMessageSync(message: string | Uint8Array): string`
-Signs a message and returns the signature (synchronous).
-- `message`: Message to sign (string or bytes)
-- Returns: Signature string
-- **Does not require provider**: Can sign messages offline.
-- **Implementation**: Uses quantum-coin-js-sdk for message signing
 
 #### `encryptSync(password: string | Uint8Array): string`
 Encrypts and serializes this wallet to a JSON string (synchronous).
@@ -1697,7 +1682,6 @@ Creates a Signature from various formats.
 - `from`: string | null - Sender address (null if not specified)
 - `nonce`: number | null - Transaction nonce
 - `gasLimit`: bigint | null - Gas limit
-- `gasPrice`: bigint | null - Gas price
 - `value`: bigint | null - Transaction value in wei
 - `data`: string | null - Transaction data (hex string)
 - `chainId`: bigint | null - Chain ID
@@ -1815,20 +1799,6 @@ Computes address from public key.
 - `key`: Public key as hex string or byte array
 - Returns: Computed address (32 bytes, 66 hex characters including 0x)
 - **Implementation**: Uses quantum-coin-js-sdk's `addressFromPublicKey()` internally
-
-#### `verifyMessage(message: string | Uint8Array, signature: string): string`
-Verifies a message signature and recovers the address.
-- `message`: Message that was signed
-- `signature`: Signature to verify (hex string)
-- Returns: Address that signed the message
-- **Implementation**: Uses quantum-coin-js-sdk for signature verification
-
-#### `recoverAddress(message: string | Uint8Array, signature: string): string`
-Recovers the address from a message signature.
-- `message`: Message that was signed
-- `signature`: Signature (hex string)
-- Returns: Address that signed the message
-- **Implementation**: Uses quantum-coin-js-sdk for signature recovery
 
 ### 5.4.1 Addressable Interface
 
@@ -2602,7 +2572,6 @@ Compute the intrinsic gas required for a transaction using plugin parameters.
 - `value`: bigint - Value in wei
 - `data`: string - Transaction data (hex string)
 - `gasLimit`: bigint - Gas limit
-- `gasPrice`: bigint | null - Gas price
 - `nonce`: number - Transaction nonce
 - `chainId`: number - Chain ID
 - `remarks`: string | null - Optional remarks field
@@ -2651,27 +2620,6 @@ Resolves to the number of confirmations this transaction has.
 **Note**: Type guard for transactions that have been included in a block.
 
 ---
-
-### 8.4 FeeData
-
-**Purpose**: Represents fee data for transactions
-
-**Constructor**:
-```javascript
-constructor(gasPrice: bigint | null)
-```
-- `gasPrice`: Legacy gas price
-
-**Properties**:
-- `gasPrice`: bigint | null - Gas price
-
-**Methods**:
-
-#### `toJSON(): any`
-Converts to JSON.
-- Returns: JSON representation of FeeData
-
-**Note**: For QuantumCoin, only `gasPrice` is used (EIP-1559 style transactions are not applicable).
 
 ---
 
@@ -2908,7 +2856,7 @@ Gets the result of a transaction execution.
 
 ### 9.3 Signer (Abstract Base Class)
 
-**Note**: The API matches ethers.js v6 Signer. All methods, properties, and behavior follow the same patterns as ethers.js v6, except `signMessage()` is replaced with `signMessageSync()` for synchronous operation.
+**Note**: The API matches ethers.js v6 Signer. All methods, properties, and behavior follow the same patterns as ethers.js v6.
 
 **Properties**:
 - `provider`: Provider | null - Provider instance
@@ -2932,11 +2880,6 @@ Signs and sends transaction.
 #### `signTransaction(tx: TransactionRequest): Promise<string>`
 Signs transaction.
 - Note: The `remarks` field in TransactionRequest is optional and can be used to include a comment (max 32 bytes). Do not store sensitive information in remarks.
-
-#### `signMessageSync(message: string | Uint8Array): string`
-Signs message (synchronous).
-- `message`: Message to sign (string or bytes)
-- Returns: Signature string
 
 #### `connect(provider: Provider): Signer`
 Connects to provider.
@@ -3127,9 +3070,6 @@ const walletFromPhrase2 = Wallet.fromPhrase(seedPhraseString, provider);
 // Encrypt wallet to JSON string (instance method)
 const encryptedJson = wallet.encryptSync('mySecurePassword123');
 // Can be saved to file and opened in Desktop/Mobile/Web/CLI wallet applications
-
-// Sign message synchronously
-const signature = wallet.signMessageSync('Hello, QuantumCoin!');
 
 const tx = await wallet.sendTransaction({
     to: '0x...',
@@ -3780,7 +3720,6 @@ Methods that send transactions must return the appropriate transaction object fr
   - `value`: Transaction value
   - `data`: Transaction data
   - `gasLimit`: Gas limit
-  - `gasPrice`: Gas price
   - `nonce`: Transaction nonce
   - `chainId`: Chain ID
   - `wait()`: Method to wait for confirmation

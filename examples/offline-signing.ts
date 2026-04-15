@@ -44,7 +44,6 @@ async function main(): Promise<void> {
     ...txReq,
     nonce,
     chainId,
-    gasPrice: 1n,
   });
 
   console.log("Unsigned txReq:", txReq);

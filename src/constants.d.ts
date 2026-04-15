@@ -59,8 +59,3 @@ export const EtherSymbol: string;
  * @type {bigint}
  */
 export const N: bigint;
-/**
- * EIP-191 personal sign message prefix (ethers.js compatible).
- * @type {string}
- */
-export const MessagePrefix: string;

@@ -1269,7 +1269,6 @@ async function main() {
     nonce: nonce0,
     chainId,
     gasLimit,
-    gasPrice: 1n,
   });
 
   const sentDeploy = await provider.sendRawTransaction(rawDeploy);
@@ -1283,7 +1282,7 @@ async function main() {
   if (contract.populateTransaction && typeof contract.populateTransaction.approve === "function") {
     const txReq = await contract.populateTransaction.approve(from, 123, { gasLimit: 200000 });
     const nonce1 = await provider.getTransactionCount(from, "pending");
-    const raw = await wallet.signTransaction({ ...txReq, nonce: nonce1, chainId, gasPrice: 1n });
+    const raw = await wallet.signTransaction({ ...txReq, nonce: nonce1, chainId });
     const sent = await provider.sendRawTransaction(raw);
     console.log("approve tx hash:", sent.hash);
     await sent.wait(1, 600_000);
@@ -1358,7 +1357,6 @@ async function main(): Promise<void> {
     nonce: nonce0,
     chainId,
     gasLimit,
-    gasPrice: 1n,
   });
 
   const sentDeploy = await provider.sendRawTransaction(rawDeploy);
@@ -1371,7 +1369,7 @@ async function main(): Promise<void> {
   if (contract.populateTransaction && typeof contract.populateTransaction.approve === "function") {
     const txReq = await contract.populateTransaction.approve(from, 123, { gasLimit: 200000 });
     const nonce1 = await provider.getTransactionCount(from, "pending");
-    const raw = await wallet.signTransaction({ ...txReq, nonce: nonce1, chainId, gasPrice: 1n });
+    const raw = await wallet.signTransaction({ ...txReq, nonce: nonce1, chainId });
     const sent = await provider.sendRawTransaction(raw);
     console.log("approve tx hash:", sent.hash);
     await sent.wait(1, 600_000);
@@ -1492,7 +1490,7 @@ main().catch((e) => {
 
         _writeText(
           path.join(outDir, "examples", `offline-signing-${a.contractName}.js`),
-          `const { Initialize } = require("quantumcoin/config");\nconst { getProvider, Wallet, getCreateAddress } = require("quantumcoin");\nconst { TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE } = require("./_test-wallet");\nconst { ${a.contractName}__factory, ${a.contractName} } = require("..");\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL;\n  if (!rpcUrl) throw new Error("QC_RPC_URL is required");\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  await Initialize(null);\n\n  const provider = getProvider(rpcUrl, chainId);\n  const wallet = Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE);\n  const from = wallet.address;\n\n  const factory = new ${a.contractName}__factory(wallet);\n  const deployTxReq = factory.getDeployTransaction();\n  const nonce0 = await provider.getTransactionCount(from, \"pending\");\n  const predicted = getCreateAddress({ from, nonce: nonce0 });\n\n  const rawDeploy = await wallet.signTransaction({ ...deployTxReq, nonce: nonce0, chainId, gasLimit: 6_000_000, gasPrice: 1n });\n  const sentDeploy = await provider.sendRawTransaction(rawDeploy);\n  await sentDeploy.wait(1, 600_000);\n\n  const contract = ${a.contractName}.connect(predicted, provider);\n  console.log(\"deployed at:\", contract.target);\n}\n\nmain().catch((e) => { console.error(e); process.exitCode = 1; });\n`,
+          `const { Initialize } = require("quantumcoin/config");\nconst { getProvider, Wallet, getCreateAddress } = require("quantumcoin");\nconst { TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE } = require("./_test-wallet");\nconst { ${a.contractName}__factory, ${a.contractName} } = require("..");\n\nasync function main() {\n  const rpcUrl = process.env.QC_RPC_URL;\n  if (!rpcUrl) throw new Error("QC_RPC_URL is required");\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  await Initialize(null);\n\n  const provider = getProvider(rpcUrl, chainId);\n  const wallet = Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE);\n  const from = wallet.address;\n\n  const factory = new ${a.contractName}__factory(wallet);\n  const deployTxReq = factory.getDeployTransaction();\n  const nonce0 = await provider.getTransactionCount(from, \"pending\");\n  const predicted = getCreateAddress({ from, nonce: nonce0 });\n\n  const rawDeploy = await wallet.signTransaction({ ...deployTxReq, nonce: nonce0, chainId, gasLimit: 6_000_000 });\n  const sentDeploy = await provider.sendRawTransaction(rawDeploy);\n  await sentDeploy.wait(1, 600_000);\n\n  const contract = ${a.contractName}.connect(predicted, provider);\n  console.log(\"deployed at:\", contract.target);\n}\n\nmain().catch((e) => { console.error(e); process.exitCode = 1; });\n`,
         );
 
         _writeText(
@@ -1514,7 +1512,7 @@ main().catch((e) => {
         );
         _writeText(
           path.join(outDir, "examples", `offline-signing-${a.contractName}.ts`),
-          `import { Initialize } from "quantumcoin/config";\nimport { getProvider, Wallet, getCreateAddress } from "quantumcoin";\nimport { TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE } from "./_test-wallet";\nimport { ${a.contractName}__factory, ${a.contractName} } from "..";\n\nasync function main(): Promise<void> {\n  const rpcUrl = process.env.QC_RPC_URL;\n  if (!rpcUrl) throw new Error("QC_RPC_URL is required");\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  await Initialize(null);\n\n  const provider = getProvider(rpcUrl, chainId);\n  const wallet = Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE);\n  const from = wallet.address;\n\n  const factory = new ${a.contractName}__factory(wallet);\n  const deployTxReq = factory.getDeployTransaction();\n  const nonce0 = await provider.getTransactionCount(from, "pending");\n  const predicted = getCreateAddress({ from, nonce: nonce0 });\n\n  const rawDeploy = await wallet.signTransaction({ ...deployTxReq, nonce: nonce0, chainId, gasLimit: 6_000_000, gasPrice: 1n });\n  const sentDeploy = await provider.sendRawTransaction(rawDeploy);\n  await sentDeploy.wait(1, 600_000);\n\n  const contract = ${a.contractName}.connect(predicted, provider);\n  console.log("deployed at:", contract.target);\n}\n\nmain().catch((e) => { console.error(e); process.exitCode = 1; });\n`,
+          `import { Initialize } from "quantumcoin/config";\nimport { getProvider, Wallet, getCreateAddress } from "quantumcoin";\nimport { TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE } from "./_test-wallet";\nimport { ${a.contractName}__factory, ${a.contractName} } from "..";\n\nasync function main(): Promise<void> {\n  const rpcUrl = process.env.QC_RPC_URL;\n  if (!rpcUrl) throw new Error("QC_RPC_URL is required");\n  const chainId = process.env.QC_CHAIN_ID ? Number(process.env.QC_CHAIN_ID) : 123123;\n  await Initialize(null);\n\n  const provider = getProvider(rpcUrl, chainId);\n  const wallet = Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE);\n  const from = wallet.address;\n\n  const factory = new ${a.contractName}__factory(wallet);\n  const deployTxReq = factory.getDeployTransaction();\n  const nonce0 = await provider.getTransactionCount(from, "pending");\n  const predicted = getCreateAddress({ from, nonce: nonce0 });\n\n  const rawDeploy = await wallet.signTransaction({ ...deployTxReq, nonce: nonce0, chainId, gasLimit: 6_000_000 });\n  const sentDeploy = await provider.sendRawTransaction(rawDeploy);\n  await sentDeploy.wait(1, 600_000);\n\n  const contract = ${a.contractName}.connect(predicted, provider);\n  console.log("deployed at:", contract.target);\n}\n\nmain().catch((e) => { console.error(e); process.exitCode = 1; });\n`,
         );
         _writeText(
           path.join(outDir, "examples", `events-${a.contractName}.ts`),

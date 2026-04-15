@@ -125,6 +125,17 @@ function assertArgument(check, message, name, value) {
 }
 
 /**
+ * Assert an argument constraint for sensitive material (keys, seeds, passwords).
+ * Uses "[REDACTED]" instead of the actual value to prevent leaking secrets in logs.
+ * @param {any} check
+ * @param {string} message
+ * @param {string} name
+ */
+function assertSecretArgument(check, message, name) {
+  assert(check, message, "INVALID_ARGUMENT", { argument: name, value: "[REDACTED]" });
+}
+
+/**
  * Provider error.
  */
 class ProviderError extends Error {
@@ -181,6 +192,7 @@ module.exports = {
   makeError,
   assert,
   assertArgument,
+  assertSecretArgument,
   ProviderError,
   TransactionError,
   ContractError,

@@ -10,10 +10,16 @@ const { normalizeHex } = require("../internal/hex");
 
 function _requireInitialized() {
   // eslint-disable-next-line global-require
-  const { isInitialized } = require("../../config");
-  if (!isInitialized()) {
-    throw makeError("QuantumCoin SDK not initialized. Call Initialize() first.", "UNKNOWN_ERROR", { operation: "contract" });
+  const { isInitialized, getInitializationPromise } = require("../../config");
+  if (isInitialized()) return;
+  if (getInitializationPromise() != null) {
+    throw makeError(
+      "QuantumCoin SDK is still initializing. Await the Initialize() promise before using SDK methods.",
+      "UNKNOWN_ERROR",
+      { operation: "requireInitialized" },
+    );
   }
+  throw makeError("QuantumCoin SDK not initialized. Call Initialize() first.", "UNKNOWN_ERROR", { operation: "contract" });
 }
 
 function _isProvider(obj) {

@@ -110,7 +110,10 @@ function _readLen(bytes, offset, lenOfLen) {
   return len;
 }
 
-function _decode(bytes, start, end) {
+const MAX_RLP_DEPTH = 64;
+
+function _decode(bytes, start, end, depth) {
+  if (depth > MAX_RLP_DEPTH) throw new Error("RLP: maximum nesting depth exceeded");
   if (start >= end) throw new Error("RLP: empty input");
   const prefix = bytes[start];
 
@@ -149,7 +152,7 @@ function _decode(bytes, start, end) {
     const out = [];
     let pos = dataStart;
     while (pos < dataEnd) {
-      const decoded = _decode(bytes, pos, dataEnd);
+      const decoded = _decode(bytes, pos, dataEnd, depth + 1);
       out.push(decoded.value);
       pos = decoded.next;
     }
@@ -166,7 +169,7 @@ function _decode(bytes, start, end) {
   const out = [];
   let pos = dataStart;
   while (pos < dataEnd) {
-    const decoded = _decode(bytes, pos, dataEnd);
+    const decoded = _decode(bytes, pos, dataEnd, depth + 1);
     out.push(decoded.value);
     pos = decoded.next;
   }
@@ -191,7 +194,7 @@ function encodeRlp(value) {
 function decodeRlp(data) {
   if (typeof data !== "string") throw new TypeError("RLP data must be a hex string");
   const bytes = arrayify(data);
-  const decoded = _decode(bytes, 0, bytes.length);
+  const decoded = _decode(bytes, 0, bytes.length, 0);
   if (decoded.next !== bytes.length) throw new Error("RLP: trailing data");
   return decoded.value;
 }

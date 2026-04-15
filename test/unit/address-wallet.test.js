@@ -174,69 +174,6 @@ describe("Address + Wallet (offline)", () => {
     assert.throws(() => qc.Wallet.fromKeys(new Uint8Array(1), new Uint8Array(0)), /publicKey must not be empty/);
   });
 
-  it("fromKeys wallet can sign messages", async () => {
-    await Initialize(null);
-    const original = qc.Wallet.fromPhrase(TEST_SEED_WORDS);
-    const restored = qc.Wallet.fromKeys(
-      original.signingKey.privateKeyBytes,
-      original.signingKey.publicKeyBytes,
-    );
-    assert.equal(restored.address, original.address);
-
-    const msg = "fromKeys signing test";
-    const sig = restored.signMessageSync(msg);
-    assert.equal(typeof sig, "string");
-    assert.ok(sig.startsWith("0x"));
-    const recovered = qc.verifyMessage(msg, sig);
-    assert.equal(recovered, original.address.toLowerCase());
-  });
-
-  it("signMessageSync + verifyMessage roundtrip (known wallet)", async () => {
-    await Initialize(null);
-    const wallet = qc.Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE);
-    const sig = wallet.signMessageSync("Hello, QuantumCoin!");
-    assert.equal(typeof sig, "string");
-    assert.ok(sig.startsWith("0x"));
-    const recovered = qc.verifyMessage("Hello, QuantumCoin!", sig);
-    assert.equal(recovered, wallet.address.toLowerCase());
-  });
-
-  it("signMessageSync returns combined signature hex and verifyMessage roundtrip (fromPhrase wallet)", async () => {
-    await Initialize(null);
-    const wallet = qc.Wallet.fromPhrase(TEST_SEED_WORDS);
-    const msg = "test message";
-    const sig = wallet.signMessageSync(msg);
-    assert.equal(typeof sig, "string");
-    assert.ok(sig.startsWith("0x"));
-    assert.ok(sig.length > 4);
-    const recovered = qc.verifyMessage(msg, sig);
-    assert.equal(recovered, wallet.address.toLowerCase());
-  });
-
-  it("signMessageSync + verifyMessage roundtrip (32-word phrase wallet)", async () => {
-    await Initialize(null);
-    const wallet = qc.Wallet.fromPhrase(TEST_SEED_WORDS_32);
-    const msg = "hello 32";
-    const sig = wallet.signMessageSync(msg);
-    assert.equal(typeof sig, "string");
-    assert.ok(sig.startsWith("0x"));
-    const recovered = qc.verifyMessage(msg, sig);
-    assert.equal(recovered, wallet.address.toLowerCase());
-    assert.equal(recovered, TEST_SEED_ADDRESS_32.toLowerCase());
-  });
-
-  it("signMessageSync + verifyMessage roundtrip (36-word phrase wallet)", async () => {
-    await Initialize(null);
-    const wallet = qc.Wallet.fromPhrase(TEST_SEED_WORDS_36);
-    const msg = "hello 36";
-    const sig = wallet.signMessageSync(msg);
-    assert.equal(typeof sig, "string");
-    assert.ok(sig.startsWith("0x"));
-    const recovered = qc.verifyMessage(msg, sig);
-    assert.equal(recovered, wallet.address.toLowerCase());
-    assert.equal(recovered, TEST_SEED_ADDRESS_36.toLowerCase());
-  });
-
   it("signTransaction works offline and returns raw tx hex", async () => {
     await Initialize(null);
     const wallet = qc.Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE);
@@ -399,22 +336,16 @@ describe("Address + Wallet (offline)", () => {
     assert.equal(qc.isAddress(w.address), true);
   });
 
-  it("createRandom(null, 3) creates wallet with keyType 3 and sign/verify roundtrip", async () => {
+  it("createRandom(null, 3) creates wallet with keyType 3", async () => {
     await Initialize(null);
     const w = qc.Wallet.createRandom(null, 3);
     assert.equal(qc.isAddress(w.address), true);
-    const sig = w.signMessageSync("kt3 test");
-    assert.ok(sig.startsWith("0x"));
-    assert.equal(qc.verifyMessage("kt3 test", sig), w.address.toLowerCase());
   });
 
-  it("createRandom(null, 5) creates wallet with keyType 5 and sign/verify roundtrip", async () => {
+  it("createRandom(null, 5) creates wallet with keyType 5", async () => {
     await Initialize(null);
     const w = qc.Wallet.createRandom(null, 5);
     assert.equal(qc.isAddress(w.address), true);
-    const sig = w.signMessageSync("kt5 test");
-    assert.ok(sig.startsWith("0x"));
-    assert.equal(qc.verifyMessage("kt5 test", sig), w.address.toLowerCase());
   });
 
   it("createRandom(null, 3) signTransaction works offline", async () => {
@@ -608,7 +539,7 @@ describe("Address + Wallet (offline)", () => {
   it("encryptSeedSync rejects password shorter than 12 characters", async () => {
     await Initialize(null);
     const seed = new Array(64).fill(1);
-    assert.throws(() => qc.Wallet.encryptSeedSync(seed, "short"), /serializeSeedAsEncryptedWallet failed/);
+    assert.throws(() => qc.Wallet.encryptSeedSync(seed, "short"), /password must be at least 12 characters/);
   });
 
   // ---------------------------------------------------------------------------

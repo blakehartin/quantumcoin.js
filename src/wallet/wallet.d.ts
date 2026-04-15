@@ -42,13 +42,6 @@ export class BaseWallet extends AbstractSigner {
     readonly seed: string | null;
     getAddress(): Promise<string>;
     /**
-     * Sign a message synchronously.
-     * Signature format: combined publicKey+signature as a hex string.
-     * @param {string|Uint8Array} message
-     * @returns {string}
-     */
-    signMessageSync(message: string | Uint8Array): string;
-    /**
      * Sign a transaction using quantum-coin-js-sdk signRawTransaction().
      * @param {import("../providers/provider").TransactionRequest} tx
      * @returns {Promise<string>}
