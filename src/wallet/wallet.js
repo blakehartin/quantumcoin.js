@@ -81,6 +81,19 @@ class BaseWallet extends AbstractSigner {
       enumerable: true,
       get: () => bytesToHex(this.signingKey.privateKeyBytes),
     });
+
+    Object.defineProperty(this, "publicKey", {
+      enumerable: true,
+      get: () => bytesToHex(this.signingKey.publicKeyBytes),
+    });
+
+    /** @type {string|null} */
+    this._seed = null;
+
+    Object.defineProperty(this, "seed", {
+      enumerable: true,
+      get: () => this._seed,
+    });
   }
 
   async getAddress() {
@@ -299,12 +312,15 @@ class Wallet extends BaseWallet {
   }
 
   /**
-   * Encrypts and serializes this wallet to JSON.
+   * Encrypts and serializes this wallet to JSON. 
    * @param {string|Uint8Array} password
    * @returns {string}
    */
   encryptSync(password) {
     _requireInitialized();
+    if (this._seed != null) {
+      return Wallet.encryptSeedSync(hexToBytes(this._seed), password);
+    }
     const pw = typeof password === "string" ? password : Buffer.from(arrayify(password)).toString("utf8");
     const json = qcsdk.serializeEncryptedWallet(this._qcWallet, pw);
     if (typeof json !== "string") throw makeError("serializeEncryptedWallet failed", "UNKNOWN_ERROR", {});
@@ -369,29 +385,11 @@ class Wallet extends BaseWallet {
     if (keyType != null) {
       assertArgument(keyType === 3 || keyType === 5, "keyType must be null, 3, or 5", "keyType", keyType);
     }
-    const qcWallet = qcsdk.newWallet(keyType ?? null);
-    if (!qcWallet || typeof qcWallet === "number") {
-      throw makeError("newWallet failed", "UNKNOWN_ERROR", { result: qcWallet });
-    }
-    return Wallet._fromQcWallet(qcWallet, provider || null);
-  }
-
-  /**
-   * Creates a new random seed word list (32 words for keyType 3, 36 for keyType 5).
-   * Use the returned words with `Wallet.fromPhrase()` to create a wallet.
-   * @param {number|null=} keyType  Optional key type: null (default=3), 3, or 5
-   * @returns {string[]}
-   */
-  static createRandomSeed(keyType) {
-    _requireInitialized();
-    if (keyType != null) {
-      assertArgument(keyType === 3 || keyType === 5, "keyType must be null, 3, or 5", "keyType", keyType);
-    }
-    const words = qcsdk.newWalletSeed(keyType ?? null);
+    const words = qcsdk.newWalletSeedWords(keyType ?? null);
     if (!words || !Array.isArray(words)) {
-      throw makeError("newWalletSeed failed", "UNKNOWN_ERROR", { result: words });
+      throw makeError("newWalletSeedWords failed", "UNKNOWN_ERROR", { result: words });
     }
-    return words;
+    return Wallet.fromPhrase(words, provider);
   }
 
   /**
@@ -505,6 +503,12 @@ class Wallet extends BaseWallet {
     w._qcWallet = qcWallet;
     if (typeof qcWallet.address === "string") {
       w.address = normalizeHex(qcWallet.address);
+    }
+    if (qcWallet.preExpansionSeed != null) {
+      const seedSrc = qcWallet.preExpansionSeed;
+      const seedBytes =
+        seedSrc instanceof Uint8Array ? seedSrc : Uint8Array.from(Array.from(seedSrc).map((n) => (Number(n) & 0xff)));
+      w._seed = bytesToHex(seedBytes);
     }
     return w;
   }

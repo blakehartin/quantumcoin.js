@@ -38,6 +38,8 @@ export class BaseWallet extends AbstractSigner {
     _qcWallet: any;
     /** @type {string} */
     address: string;
+    readonly publicKey: string;
+    readonly seed: string | null;
     getAddress(): Promise<string>;
     /**
      * Sign a message synchronously.
@@ -77,12 +79,6 @@ export class Wallet extends BaseWallet {
      * @returns {Wallet}
      */
     static createRandom(provider?: import("../providers/provider").AbstractProvider | undefined, keyType?: number | null): Wallet;
-    /**
-     * Creates a new random seed word list (32 words for keyType 3, 36 for keyType 5).
-     * @param {number|null=} keyType  Optional key type: null (default=3), 3, or 5
-     * @returns {string[]}
-     */
-    static createRandomSeed(keyType?: number | null): string[];
     /**
      * Creates a wallet from raw seed bytes.
      * @param {number[]} seed  Raw seed bytes: 64 (keyType 3), 72 (keyType 5), or 96 (legacy)

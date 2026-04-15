@@ -387,7 +387,6 @@ User-facing wallet class.
 
 **Static methods**
 - `Wallet.createRandom(provider?: AbstractProvider, keyType?: number | null): Wallet` — `keyType`: `null`/`3` (default, hybrid compact) or `5` (hybrid5)
-- `Wallet.createRandomSeed(keyType?: number | null): string[]` — returns seed words (32 for keyType 3, 36 for keyType 5); pass to `fromPhrase` to open
 - `Wallet.fromSeed(seed: number[], provider?: AbstractProvider): Wallet` — opens wallet from raw seed bytes (64/72/96 length)
 - `Wallet.fromEncryptedJsonSync(json: string, password: string, provider?: AbstractProvider): Wallet`
 - `Wallet.fromPhrase(phrase: string | string[], provider?: AbstractProvider): Wallet`

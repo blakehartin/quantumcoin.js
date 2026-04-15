@@ -90,6 +90,6 @@
   },
   "dependencies": {
     "seed-words": "^1.0.2",
-    "quantum-coin-js-sdk": "1.0.34"
+    "quantum-coin-js-sdk": "1.0.35"
   }
 }
