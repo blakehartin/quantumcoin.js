@@ -59,6 +59,11 @@ export class BaseWallet extends AbstractSigner {
  */
 export class Wallet extends BaseWallet {
     /**
+     * Returns the seed phrase (list of words) if this wallet has a seed, else null.
+     * Derived from the stored pre-expansion seed via seed-words.getWordListFromSeedArray.
+     */
+    getPhrase(): string[] | null;
+    /**
      * Returns the recommended signing context for this wallet.
      * Setting fullSign to true may incur additional gas cost.
      * @param {boolean|null=} fullSign  Defaults to false when null or omitted.

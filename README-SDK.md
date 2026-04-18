@@ -370,6 +370,8 @@ Core signing implementation.
 **Properties**
 - `address: string`
 - `privateKey: string` (getter; hex string)
+- `publicKey: string` (getter; hex string)
+- `seed: string | null` (getter; pre-expansion seed as hex, or `null` if the wallet has no seed source)
 - `provider: AbstractProvider | null`
 
 **Methods**
@@ -397,7 +399,21 @@ User-facing wallet class.
 - `getTransactionCount(blockTag?: string): Promise<number>`
 - `encryptSync(password: string | Uint8Array): string`
 - `connect(provider: AbstractProvider): Wallet`
+- `getPhrase(): string[] | null` — returns the seed phrase (list of words) when the wallet has a seed, else `null`. Works for `createRandom`, `fromPhrase`, `fromSeed`, and `fromEncryptedJsonSync` on a version-5 keystore. Returns `null` for `fromKeys` and for v3/v4 keystores.
 - `getSigningContext(fullSign?: boolean | null): number` — returns the recommended signing context for this wallet (based on public key type). Setting `fullSign` to `true` may incur additional gas cost.
+
+**Seed & phrase applicability**
+
+| Factory | `seed` | `getPhrase()` |
+| --- | --- | --- |
+| `new Wallet(privateKey)` | `null` | `null` |
+| `Wallet.createRandom(provider?, keyType?)` | non-null | 32 or 36 words |
+| `Wallet.fromPhrase(phrase)` | non-null | 32 / 36 / 48 words |
+| `Wallet.fromSeed(seed)` | non-null | 32 / 36 / 48 words |
+| `Wallet.fromKeys(priv, pub)` | `null` | `null` |
+| `Wallet.fromEncryptedJsonSync(json, pw)` — v5 keystore (from `encryptSync` on seed-bearing wallet, or `encryptSeedSync`) | non-null | original words |
+| `Wallet.fromEncryptedJsonSync(json, pw)` — v3 / v4 keystore | `null` | `null` |
+| `wallet.connect(provider)` | same as source | same as source |
 
 **Example(s):**
 - `examples/wallet-offline.js`

@@ -636,6 +636,147 @@ describe("Address + Wallet (offline)", () => {
   });
 
   // ---------------------------------------------------------------------------
+  // getPhrase()
+  // ---------------------------------------------------------------------------
+
+  it("getPhrase returns 32 words and roundtrips through fromPhrase (same address)", async () => {
+    await Initialize(null);
+    const w = qc.Wallet.fromPhrase(TEST_SEED_WORDS_32);
+    const phrase = w.getPhrase();
+    assert.ok(Array.isArray(phrase));
+    assert.equal(phrase!.length, 32);
+    assert.deepEqual(phrase, TEST_SEED_WORDS_32);
+    const w2 = qc.Wallet.fromPhrase(phrase!);
+    assert.equal(w2.address, TEST_SEED_ADDRESS_32);
+    assert.equal(w2.address, w.address);
+  });
+
+  it("getPhrase returns 36 words and roundtrips through fromPhrase (same address)", async () => {
+    await Initialize(null);
+    const w = qc.Wallet.fromPhrase(TEST_SEED_WORDS_36);
+    const phrase = w.getPhrase();
+    assert.ok(Array.isArray(phrase));
+    assert.equal(phrase!.length, 36);
+    assert.deepEqual(phrase, TEST_SEED_WORDS_36);
+    const w2 = qc.Wallet.fromPhrase(phrase!);
+    assert.equal(w2.address, TEST_SEED_ADDRESS_36);
+    assert.equal(w2.address, w.address);
+  });
+
+  it("getPhrase returns 48 words and roundtrips through fromPhrase (same address)", async () => {
+    await Initialize(null);
+    const w = qc.Wallet.fromPhrase(TEST_SEED_WORDS);
+    const phrase = w.getPhrase();
+    assert.ok(Array.isArray(phrase));
+    assert.equal(phrase!.length, 48);
+    assert.deepEqual(phrase, TEST_SEED_WORDS);
+    const w2 = qc.Wallet.fromPhrase(phrase!);
+    assert.equal(w2.address, TEST_SEED_ADDRESS);
+    assert.equal(w2.address, w.address);
+  });
+
+  it("getPhrase on fromSeed(32-word seed) returns the matching 32 words", async () => {
+    await Initialize(null);
+    const seedwords = require("seed-words");
+    const seedArr = seedwords.getSeedArrayFromWordList(TEST_SEED_WORDS_32);
+    const w = qc.Wallet.fromSeed(Array.from(seedArr));
+    assert.deepEqual(w.getPhrase(), TEST_SEED_WORDS_32);
+    const w2 = qc.Wallet.fromPhrase(w.getPhrase()!);
+    assert.equal(w2.address, TEST_SEED_ADDRESS_32);
+    assert.equal(w2.address, w.address);
+  });
+
+  it("getPhrase on fromSeed(36-word seed) returns the matching 36 words", async () => {
+    await Initialize(null);
+    const seedwords = require("seed-words");
+    const seedArr = seedwords.getSeedArrayFromWordList(TEST_SEED_WORDS_36);
+    const w = qc.Wallet.fromSeed(Array.from(seedArr));
+    assert.deepEqual(w.getPhrase(), TEST_SEED_WORDS_36);
+    const w2 = qc.Wallet.fromPhrase(w.getPhrase()!);
+    assert.equal(w2.address, TEST_SEED_ADDRESS_36);
+    assert.equal(w2.address, w.address);
+  });
+
+  it("getPhrase on fromSeed(48-word seed) returns the matching 48 words", async () => {
+    await Initialize(null);
+    const seedwords = require("seed-words");
+    const seedArr = seedwords.getSeedArrayFromWordList(TEST_SEED_WORDS);
+    const w = qc.Wallet.fromSeed(Array.from(seedArr));
+    assert.deepEqual(w.getPhrase(), TEST_SEED_WORDS);
+    const w2 = qc.Wallet.fromPhrase(w.getPhrase()!);
+    assert.equal(w2.address, TEST_SEED_ADDRESS);
+    assert.equal(w2.address, w.address);
+  });
+
+  it("seed and getPhrase survive encryptSync + fromEncryptedJsonSync (32-word)", async () => {
+    await Initialize(null);
+    const w = qc.Wallet.fromPhrase(TEST_SEED_WORDS_32);
+    const json = w.encryptSync(PASSPHRASE_PHRASE);
+    assert.equal(JSON.parse(json).version, 5);
+    const restored = qc.Wallet.fromEncryptedJsonSync(json, PASSPHRASE_PHRASE);
+    assert.equal(restored.seed, w.seed);
+    assert.deepEqual(restored.getPhrase(), TEST_SEED_WORDS_32);
+    assert.equal(restored.address, TEST_SEED_ADDRESS_32);
+  });
+
+  it("seed and getPhrase survive encryptSync + fromEncryptedJsonSync (36-word)", async () => {
+    await Initialize(null);
+    const w = qc.Wallet.fromPhrase(TEST_SEED_WORDS_36);
+    const json = w.encryptSync(PASSPHRASE_PHRASE);
+    assert.equal(JSON.parse(json).version, 5);
+    const restored = qc.Wallet.fromEncryptedJsonSync(json, PASSPHRASE_PHRASE);
+    assert.equal(restored.seed, w.seed);
+    assert.deepEqual(restored.getPhrase(), TEST_SEED_WORDS_36);
+    assert.equal(restored.address, TEST_SEED_ADDRESS_36);
+  });
+
+  it("seed and getPhrase survive encryptSync + fromEncryptedJsonSync (48-word)", async () => {
+    await Initialize(null);
+    const w = qc.Wallet.fromPhrase(TEST_SEED_WORDS);
+    const json = w.encryptSync(PASSPHRASE_PHRASE);
+    assert.equal(JSON.parse(json).version, 5);
+    const restored = qc.Wallet.fromEncryptedJsonSync(json, PASSPHRASE_PHRASE);
+    assert.equal(restored.seed, w.seed);
+    assert.deepEqual(restored.getPhrase(), TEST_SEED_WORDS);
+    assert.equal(restored.address, TEST_SEED_ADDRESS);
+  });
+
+  it("getPhrase on createRandom returns 32 words that recreate the same wallet", async () => {
+    await Initialize(null);
+    const w = qc.Wallet.createRandom();
+    const phrase = w.getPhrase();
+    assert.ok(Array.isArray(phrase));
+    assert.equal(phrase!.length, 32);
+    const w2 = qc.Wallet.fromPhrase(phrase!);
+    assert.equal(w2.address, w.address);
+  });
+
+  it("getPhrase on createRandom(null, 5) returns 36 words that recreate the same wallet", async () => {
+    await Initialize(null);
+    const w = qc.Wallet.createRandom(undefined, 5);
+    const phrase = w.getPhrase();
+    assert.ok(Array.isArray(phrase));
+    assert.equal(phrase!.length, 36);
+    const w2 = qc.Wallet.fromPhrase(phrase!);
+    assert.equal(w2.address, w.address);
+  });
+
+  it("getPhrase returns null when seed is null (fromKeys wallet)", async () => {
+    await Initialize(null);
+    const ref = qc.Wallet.fromPhrase(TEST_SEED_WORDS_32);
+    const w = qc.Wallet.fromKeys(ref.signingKey.privateKeyBytes, ref.signingKey.publicKeyBytes);
+    assert.equal(w.seed, null);
+    assert.equal(w.getPhrase(), null);
+  });
+
+  it("getPhrase returns null for v3 encrypted-JSON wallet (no preExpansionSeed)", async () => {
+    await Initialize(null);
+    const w = qc.Wallet.fromEncryptedJsonSync(TEST_WALLET_ENCRYPTED_JSON, TEST_WALLET_PASSPHRASE);
+    assert.equal(w.seed, null);
+    assert.equal(w.getPhrase(), null);
+  });
+
+  // ---------------------------------------------------------------------------
   // seed roundtrip through encryptSync / fromEncryptedJsonSync
   // ---------------------------------------------------------------------------
 

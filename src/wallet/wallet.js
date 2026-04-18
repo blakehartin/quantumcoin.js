@@ -9,6 +9,7 @@
  */
 
 const qcsdk = require("quantum-coin-js-sdk");
+const seedWords = require("seed-words");
 const { JsonRpcProvider } = require("../providers/json-rpc-provider");
 const { assertArgument, assertSecretArgument, makeError } = require("../errors");
 const { arrayify, bytesToHex, hexToBytes, isHexString, normalizeHex } = require("../internal/hex");
@@ -352,6 +353,25 @@ class Wallet extends BaseWallet {
     const json = qcsdk.serializeSeedAsEncryptedWallet(seedArr, pw);
     if (typeof json !== "string") throw makeError("serializeSeedAsEncryptedWallet failed", "UNKNOWN_ERROR", {});
     return json;
+  }
+
+  /**
+   * Returns the seed phrase (list of words) if this wallet has a seed, else null.
+   * Derived from the stored pre-expansion seed via seed-words.getWordListFromSeedArray.
+   *
+   * Non-null for wallets created via createRandom, fromPhrase, fromSeed, and
+   * fromEncryptedJsonSync when the JSON is a version-5 keystore produced by
+   * encryptSync on a seed-bearing wallet or by encryptSeedSync.
+   * Null for fromKeys and for v3/v4 keystores without preExpansionSeed.
+   *
+   * @returns {string[]|null}
+   */
+  getPhrase() {
+    _requireInitialized();
+    if (this._seed == null) return null;
+    const bytes = Array.from(hexToBytes(this._seed));
+    const words = seedWords.getWordListFromSeedArray(bytes);
+    return Array.isArray(words) ? words : null;
   }
 
   /**

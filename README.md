@@ -56,6 +56,19 @@ const restored = Wallet.fromEncryptedJsonSync(encrypted, "mySecurePassword123");
 console.log(restored.address);
 ```
 
+### Seed phrase (`getPhrase()`)
+
+Any wallet that was constructed from a seed exposes its seed words via `getPhrase()`:
+
+```js
+const wallet = Wallet.createRandom();
+const phrase = wallet.getPhrase();      // string[] of seed words, or null
+const restored = Wallet.fromPhrase(phrase);
+console.log(restored.address === wallet.address); // true
+```
+
+`getPhrase()` returns the seed words whenever `wallet.seed` is non-null — i.e. wallets produced by `createRandom`, `fromPhrase`, `fromSeed`, or `fromEncryptedJsonSync` on a version-5 keystore (produced by `encryptSync` on a seed-bearing wallet or by `encryptSeedSync`). It returns `null` for wallets constructed via `fromKeys` or from v3/v4 keystores.
+
 ### Encrypt a raw seed
 
 You can encrypt raw seed bytes (pre-expansion) into a portable wallet JSON (version 5 format) without first opening the wallet:
