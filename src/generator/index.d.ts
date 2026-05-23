@@ -52,23 +52,30 @@ export function generateFromArtifacts(opts: {
  * Generate a transactional e2e test file (JavaScript) for the typed contract package.
  * The test deploys the contract with constructor args (if any) and invokes one write method.
  *
- * @param {{ contractName: string, abi: any[] }} opts
- * @returns {string}
+ * When `bytecode` is omitted, empty, or `"0x"` the contract is treated as an interface
+ * and the post-deploy `provider.getCode(...)` bytecode assertion is omitted from the
+ * generated test (interfaces deploy with no runtime code by design).
+ *
+ * @param opts
  */
 export function generateTransactionalTestJs(opts: {
     contractName: string;
     abi: any[];
+    bytecode?: string;
 }): string;
 /**
  * Generate a single transactional e2e test that deploys and invokes methods on ALL contracts.
  * Used when the package has multiple contracts so one test exercises every contract.
  *
- * @param {{ artifacts: Array<{ contractName: string, abi: any[] }> }} opts
- * @returns {string}
+ * Accepts `bytecode` per artifact for forward-compatibility; the multi-contract template
+ * currently emits no `getCode` assertion (so the value is not yet consumed).
+ *
+ * @param opts
  */
 export function generateAllContractsTransactionalTestJs(opts: {
     artifacts: Array<{
         contractName: string;
         abi: any[];
+        bytecode?: string;
     }>;
 }): string;

@@ -11,6 +11,13 @@ export function isUint8Array(value: any): value is Uint8Array;
  */
 export function normalizeHex(hex: string): string;
 /**
+ * Format a number/bigint as a JSON-RPC QUANTITY hex string (no leading zeros).
+ * @param value
+ */
+export function toQuantityHex(value: number | bigint): string;
+/** Alias of `toQuantityHex` matching ethers.js v6 naming. */
+export const toQuantity: typeof toQuantityHex;
+/**
  * Returns true if value is a hex string.
  * @param {any} value
  * @param {number=} lengthBytes Optional exact byte length.

@@ -133,6 +133,10 @@ For more options (Solidity sources, artifacts JSON, package scaffolding), see [R
 - **No returns**: `Promise<void>`.
 - **Structs / tuples**: generated as `export type <Name>Input` / `export type <Name>Output` and used directly in method signatures.
 
+### Interface contracts
+
+When the input artifact has empty bytecode (`"0x"` or empty `.bin`, typically produced by `solc` for a Solidity `interface`), the generator emits a transactional test that **skips the post-deploy bytecode check**. The deploy step still runs (the receipt-status assertion validates SDK wrapper wiring), but `provider.getCode(contract.target)` is not asserted to be non-empty — an interface deploys with no runtime code by design. Concrete contracts (non-empty bytecode) continue to assert that `provider.getCode(contract.target)` is non-empty.
+
 ## Solidity types (TypeScript)
 
 QuantumCoin.js exports core Solidity-related typings from:

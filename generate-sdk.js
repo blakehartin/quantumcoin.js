@@ -895,14 +895,16 @@ export function createTestWallet(provider: unknown) {
     for (const a of artifacts) {
       _writeText(
         path.join(outDir, "test", "e2e", `${a.contractName}.e2e.test.js`),
-        generateTransactionalTestJs({ contractName: a.contractName, abi: a.abi }),
+        generateTransactionalTestJs({ contractName: a.contractName, abi: a.abi, bytecode: a.bytecode }),
       );
     }
 
     if (artifacts.length > 1) {
       _writeText(
         path.join(outDir, "test", "e2e", "all-contracts.e2e.test.js"),
-        generateAllContractsTransactionalTestJs({ artifacts: artifacts.map((a) => ({ contractName: a.contractName, abi: a.abi })) }),
+        generateAllContractsTransactionalTestJs({
+          artifacts: artifacts.map((a) => ({ contractName: a.contractName, abi: a.abi, bytecode: a.bytecode })),
+        }),
       );
     }
 
