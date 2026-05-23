@@ -8,7 +8,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { normalizeHex, isHexString, hexToBytes, bytesToHex, arrayify } from "../../src/internal/hex";
+import { normalizeHex, toQuantityHex, toQuantity, isHexString, hexToBytes, bytesToHex, arrayify } from "../../src/internal/hex";
 import { logSuite, logTest } from "../verbose-logger";
 
 describe("internal/hex", () => {
@@ -19,6 +19,37 @@ describe("internal/hex", () => {
     assert.equal(normalizeHex("0xAa"), "0xaa");
     assert.equal(normalizeHex("0xa"), "0x0a");
     assert.equal(normalizeHex("0x0A"), "0x0a");
+  });
+
+  it("toQuantityHex produces spec-compliant quantities (no leading zeros, 0x0 for zero)", () => {
+    logTest("toQuantityHex produces spec-compliant quantities", {});
+    assert.equal(toQuantityHex(0), "0x0");
+    assert.equal(toQuantityHex(0n), "0x0");
+    assert.equal(toQuantityHex(1), "0x1");
+    assert.equal(toQuantityHex(5), "0x5");
+    assert.equal(toQuantityHex(15), "0xf");
+    assert.equal(toQuantityHex(16), "0x10");
+    assert.equal(toQuantityHex(255), "0xff");
+    assert.equal(toQuantityHex(256), "0x100");
+    assert.equal(toQuantityHex(4095), "0xfff");
+    assert.equal(toQuantityHex(4096), "0x1000");
+    assert.equal(toQuantityHex(65535n), "0xffff");
+    assert.equal(toQuantityHex(2n ** 64n), "0x10000000000000000");
+
+    assert.equal(toQuantity, toQuantityHex);
+    assert.equal(toQuantity(5), "0x5");
+  });
+
+  it("toQuantityHex rejects invalid inputs", () => {
+    logTest("toQuantityHex rejects invalid inputs", {});
+    assert.throws(() => toQuantityHex(-1), RangeError);
+    assert.throws(() => toQuantityHex(-1n), RangeError);
+    assert.throws(() => toQuantityHex(1.5), TypeError);
+    assert.throws(() => toQuantityHex(NaN), TypeError);
+    assert.throws(() => toQuantityHex(Infinity), TypeError);
+    assert.throws(() => toQuantityHex("5" as unknown as number), TypeError);
+    assert.throws(() => toQuantityHex(null as unknown as number), TypeError);
+    assert.throws(() => toQuantityHex(undefined as unknown as number), TypeError);
   });
 
   it("isHexString validates and supports optional lengthBytes", () => {

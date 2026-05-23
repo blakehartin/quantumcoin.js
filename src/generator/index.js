@@ -381,6 +381,23 @@ function _findConstructor(abi) {
   return ctor || { type: "constructor", inputs: [] };
 }
 
+/**
+ * Return true if the given bytecode artifact represents an interface
+ * (or otherwise non-deployable contract with no runtime code).
+ *
+ * `solc` writes an empty `.bin` for `interface` declarations and fully
+ * abstract `contract` declarations. We treat `null`, `undefined`, empty
+ * string, and the bare `"0x"` / `"0X"` prefix as interface bytecode.
+ *
+ * @param {string|null|undefined} bytecode
+ * @returns {boolean}
+ */
+function _isInterfaceBytecode(bytecode) {
+  if (bytecode == null) return true;
+  const s = String(bytecode).trim().toLowerCase();
+  return s === "" || s === "0x";
+}
+
 function _solTypeToTestValueExpr(param) {
   const type = typeof param === "string" ? param : String(param && param.type ? param.type : "");
   const internalType = typeof param === "object" && param ? String(param.internalType || "") : "";
@@ -957,11 +974,17 @@ function _renderIndexDts(contractNames) {
  * Generate a transactional e2e test file (JavaScript) for the typed contract package.
  * The test deploys the contract with constructor args (if any) and invokes one write method.
  *
- * @param {{ contractName: string, abi: any[] }} opts
+ * When `bytecode` is omitted, empty, or `"0x"` the contract is treated as an interface:
+ * the generated test still attempts the deploy (the receipt-status assertion still validates
+ * SDK wrapper wiring) but the post-deploy `provider.getCode(...)` bytecode assertion is
+ * skipped, since interfaces deploy with no runtime code by design.
+ *
+ * @param {{ contractName: string, abi: any[], bytecode?: string }} opts
  * @returns {string}
  */
 function generateTransactionalTestJs(opts) {
-  const { contractName, abi } = opts;
+  const { contractName, abi, bytecode } = opts;
+  const isInterface = _isInterfaceBytecode(bytecode);
   const factoryName = `${contractName}__factory`;
   const ctor = _findConstructor(abi);
   const ctorInputs = ctor.inputs || [];
@@ -1127,8 +1150,10 @@ describe("${contractName} transactional", () => {
     assert.ok(deployReceipt);
     assert.ok(deployReceipt.blockNumber != null);
 
-    const code = await provider.getCode(contract.target, "latest");
-    assert.ok(code && code !== "0x");
+    ${isInterface
+      ? `// Skipping bytecode check: ${contractName} is an interface (no bytecode).`
+      : `const code = await provider.getCode(contract.target, "latest");
+    assert.ok(code && code !== "0x");`}
 
     ${erc20Assertions ? erc20Assertions : `// (no ERC-20 surface detected for extra assertions)`}
 
@@ -1191,7 +1216,10 @@ function _getContractTestMeta(opts) {
  * Generate a single transactional e2e test that deploys and invokes methods on ALL contracts.
  * Used when the package has multiple contracts so one test exercises every contract.
  *
- * @param {{ artifacts: Array<{ contractName: string, abi: any[] }> }} opts
+ * Accepts `bytecode` per artifact for forward-compatibility, although the multi-contract
+ * template currently emits no `getCode` assertion (so the value is not yet consumed).
+ *
+ * @param {{ artifacts: Array<{ contractName: string, abi: any[], bytecode?: string }> }} opts
  * @returns {string}
  */
 function generateAllContractsTransactionalTestJs(opts) {

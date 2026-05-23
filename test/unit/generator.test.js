@@ -11,7 +11,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const { generate, generateFromArtifacts } = require("../../src/generator");
+const { generate, generateFromArtifacts, generateTransactionalTestJs } = require("../../src/generator");
 const { logSuite, logTest } = require("../verbose-logger");
 
 describe("typed contract generator", () => {
@@ -60,6 +60,53 @@ describe("typed contract generator", () => {
 
     const factorySrc = fs.readFileSync(res.factoryFile, "utf8");
     assert.ok(factorySrc.includes("export class TestToken__factory"));
+  });
+
+  it("generated test for a concrete contract (with bytecode) contains the provider.getCode bytecode assertion", () => {
+    logTest("generated test for a concrete contract contains the bytecode assertion", {});
+    const src = generateTransactionalTestJs({
+      contractName: "ConcreteToken",
+      abi: [{ type: "constructor", inputs: [], stateMutability: "nonpayable" }],
+      bytecode: "0x6080604052",
+    });
+    assert.ok(src.includes("provider.getCode(contract.target"));
+    assert.ok(src.includes('assert.ok(code && code !== "0x")'));
+    assert.ok(!src.includes("Skipping bytecode check"));
+  });
+
+  it("generated test for an interface (bytecode '0x') omits the provider.getCode bytecode assertion", () => {
+    logTest("generated test for an interface omits the bytecode assertion", {});
+    const src = generateTransactionalTestJs({
+      contractName: "IThing",
+      abi: [{
+        type: "function", name: "doThing",
+        inputs: [], outputs: [], stateMutability: "nonpayable",
+      }],
+      bytecode: "0x",
+    });
+    assert.ok(!src.includes("provider.getCode(contract.target"));
+    assert.ok(!src.includes('assert.ok(code && code !== "0x")'));
+    assert.ok(src.includes("Skipping bytecode check"));
+    assert.ok(src.includes("IThing is an interface"));
+  });
+
+  it("empty/undefined/null/'0X' bytecode variants are all treated as interface", () => {
+    logTest("empty bytecode variants are all treated as interface", {});
+    for (const bc of [undefined, null, "", "0x", "0X", "  0x  "]) {
+      const src = generateTransactionalTestJs({
+        contractName: "IThing",
+        abi: [],
+        bytecode: bc,
+      });
+      assert.ok(
+        !src.includes("provider.getCode(contract.target"),
+        `bytecode=${JSON.stringify(bc)} should be treated as interface (no getCode assertion)`,
+      );
+      assert.ok(
+        src.includes("Skipping bytecode check"),
+        `bytecode=${JSON.stringify(bc)} should emit skip comment`,
+      );
+    }
   });
 
   it("includes injected docs in generated TypeScript", () => {

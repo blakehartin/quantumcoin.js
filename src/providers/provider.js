@@ -7,7 +7,7 @@
 
 const { EventEmitter } = require("events");
 const { makeError, assertArgument } = require("../errors");
-const { normalizeHex, isHexString } = require("../internal/hex");
+const { normalizeHex, toQuantityHex, isHexString } = require("../internal/hex");
 
 /**
  * @typedef {import("../utils/encoding").BytesLike} BytesLike
@@ -58,7 +58,7 @@ function _blockTagToHex(blockTag) {
   if (s === "latest" || s === "pending" || s === "earliest") return s;
   const n = typeof blockTag === "number" ? blockTag : Number(blockTag);
   if (!Number.isInteger(n) || n < 0) return undefined;
-  return normalizeHex("0x" + n.toString(16));
+  return toQuantityHex(n);
 }
 
 /**
@@ -251,7 +251,7 @@ class AbstractProvider extends Provider {
    * @returns {Promise<Block>}
    */
   async getBlock(blockNumber) {
-    const tag = blockNumber === "latest" ? "latest" : normalizeHex("0x" + Number(blockNumber).toString(16));
+    const tag = blockNumber === "latest" ? "latest" : toQuantityHex(blockNumber);
     const block = await this._perform("eth_getBlockByNumber", [tag, false]);
     return new Block(block, this);
   }

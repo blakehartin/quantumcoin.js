@@ -91,6 +91,59 @@ describe("AbstractProvider defaults", () => {
   });
 });
 
+describe("AbstractProvider block-tag QUANTITY formatting", () => {
+  logSuite("AbstractProvider block-tag QUANTITY formatting");
+
+  it("getBlock encodes block numbers as spec-compliant quantities (no leading zeros)", async () => {
+    logTest("getBlock encodes block numbers as spec-compliant quantities", {});
+    class BlockStub extends qc.AbstractProvider {
+      calls: { method: string; params: any[] }[] = [];
+      async _perform(method: string, params: any[]) {
+        this.calls.push({ method, params });
+        return { number: "0x5", timestamp: "0x64" };
+      }
+    }
+    const p = new BlockStub();
+    await p.getBlock(0);        assert.equal(p.calls.at(-1)!.params[0], "0x0");
+    await p.getBlock(5);        assert.equal(p.calls.at(-1)!.params[0], "0x5");
+    await p.getBlock(15);       assert.equal(p.calls.at(-1)!.params[0], "0xf");
+    await p.getBlock(16);       assert.equal(p.calls.at(-1)!.params[0], "0x10");
+    await p.getBlock(256);      assert.equal(p.calls.at(-1)!.params[0], "0x100");
+    await p.getBlock(4095);     assert.equal(p.calls.at(-1)!.params[0], "0xfff");
+    await p.getBlock(4096);     assert.equal(p.calls.at(-1)!.params[0], "0x1000");
+    await p.getBlock("latest"); assert.equal(p.calls.at(-1)!.params[0], "latest");
+  });
+
+  it("getLogs encodes fromBlock/toBlock as spec-compliant quantities (no leading zeros)", async () => {
+    logTest("getLogs encodes fromBlock/toBlock as spec-compliant quantities", {});
+    class LogStub extends qc.AbstractProvider {
+      calls: { method: string; params: any[] }[] = [];
+      async _perform(method: string, params: any[]) {
+        this.calls.push({ method, params });
+        return [];
+      }
+    }
+    const lp = new LogStub();
+    await lp.getLogs({ fromBlock: 5, toBlock: 256 });
+    assert.equal(lp.calls[0].params[0].fromBlock, "0x5");
+    assert.equal(lp.calls[0].params[0].toBlock,   "0x100");
+    await lp.getLogs({ fromBlock: "latest", toBlock: "pending" });
+    assert.equal(lp.calls[1].params[0].fromBlock, "latest");
+    assert.equal(lp.calls[1].params[0].toBlock,   "pending");
+  });
+
+  it("getBlock rejects invalid block numbers with a clear typed error", async () => {
+    logTest("getBlock rejects invalid block numbers", {});
+    class StubP extends qc.AbstractProvider {
+      async _perform() { return { number: "0x0" }; }
+    }
+    const p = new StubP();
+    await assert.rejects(() => p.getBlock(-1 as unknown as number),  (e) => e instanceof RangeError);
+    await assert.rejects(() => p.getBlock(1.5 as unknown as number), (e) => e instanceof TypeError);
+    await assert.rejects(() => p.getBlock(NaN as unknown as number), (e) => e instanceof TypeError);
+  });
+});
+
 describe("TransactionResponse.wait", () => {
   logSuite("TransactionResponse.wait");
   it("uses default confirmations when omitted vs null", async () => {

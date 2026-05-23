@@ -36,6 +36,40 @@ function normalizeHex(hex) {
 }
 
 /**
+ * Format a number/bigint as a JSON-RPC QUANTITY hex string.
+ *
+ * Per the Ethereum JSON-RPC spec, quantities use the most compact
+ * representation with no leading zeros, with the single exception that
+ * zero is encoded as "0x0".
+ *
+ * Use this for block numbers, gas amounts, nonces, balances, and other
+ * numeric RPC parameters. Do NOT use it for DATA hex (addresses,
+ * bytecode, byte-arrays) — use `normalizeHex` for those.
+ *
+ * @param {number|bigint} value
+ * @returns {string}
+ */
+function toQuantityHex(value) {
+  let n;
+  if (typeof value === "bigint") {
+    n = value;
+  } else if (typeof value === "number") {
+    if (!Number.isInteger(value)) {
+      throw new TypeError("toQuantityHex: value must be an integer or bigint");
+    }
+    n = BigInt(value);
+  } else {
+    throw new TypeError("toQuantityHex: value must be a number or bigint");
+  }
+  if (n < 0n) throw new RangeError("toQuantityHex: value must be non-negative");
+  if (n === 0n) return "0x0";
+  return "0x" + n.toString(16);
+}
+
+/** Alias of `toQuantityHex` matching ethers.js v6 naming. */
+const toQuantity = toQuantityHex;
+
+/**
  * Returns true if value is a hex string.
  * @param {any} value
  * @param {number=} lengthBytes Optional exact byte length.
@@ -132,6 +166,8 @@ function arrayify(data) {
 module.exports = {
   isUint8Array,
   normalizeHex,
+  toQuantityHex,
+  toQuantity,
   isHexString,
   strip0x,
   add0x,
