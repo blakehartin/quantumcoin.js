@@ -121,7 +121,7 @@ describe("auto-generator: interface contract end-to-end (real chain)", () => {
     try {
       const res = spawnSync(
         process.execPath,
-        ["--test", testFile],
+        ["--test", "--test-reporter=tap", testFile],
         {
           cwd: tmpRoot,
           env: childEnv,
@@ -135,14 +135,16 @@ describe("auto-generator: interface contract end-to-end (real chain)", () => {
         0,
         `generated interface test failed:\nSTDOUT:\n${res.stdout}\nSTDERR:\n${res.stderr}`,
       );
+      // Accept either the TAP reporter ("# pass 1") or the spec reporter
+      // ("\u2139 pass 1") summary line so the assertion is reporter-agnostic.
       assert.match(
         res.stdout || "",
-        /# pass 1\b/,
-        `generated interface test did not actually run (no '# pass 1' in TAP output);\nSTDOUT:\n${res.stdout}\nSTDERR:\n${res.stderr}`,
+        /(?:#|\u2139)\s*pass 1\b/,
+        `generated interface test did not actually run (no 'pass 1' summary in test output);\nSTDOUT:\n${res.stdout}\nSTDERR:\n${res.stderr}`,
       );
       assert.doesNotMatch(
         res.stdout || "",
-        /# pass 0\b|# tests 0\b|# skipped 1\b/,
+        /(?:#|\u2139)\s*pass 0\b|(?:#|\u2139)\s*tests 0\b|(?:#|\u2139)\s*skipped 1\b/,
         `generated interface test was skipped or did not run any tests;\nSTDOUT:\n${res.stdout}\nSTDERR:\n${res.stderr}`,
       );
       succeeded = true;

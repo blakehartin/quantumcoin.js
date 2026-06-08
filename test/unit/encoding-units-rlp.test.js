@@ -89,4 +89,39 @@
      assert.equal(decoded, "0x");
    });
  });
+
+describe("Security: RLP canonical encoding & length overflow", () => {
+  it("rejects a single byte < 0x80 encoded as a 1-byte string (negative)", () => {
+    // 0x81 0x00 = "short string of length 1 containing 0x00" — must be 0x00.
+    assert.throws(() => qc.decodeRlp("0x8100"), /non-canonical single byte/i);
+  });
+
+  it("rejects a long-string form whose length fits the short form (negative)", () => {
+    // 0xb8 (long string, lenOfLen=1) 0x01 0xff -> declared length 1 (<= 55).
+    assert.throws(() => qc.decodeRlp("0xb801ff"), /non-canonical long string/i);
+  });
+
+  it("rejects a length field with a leading zero byte (negative)", () => {
+    // 0xb9 (long string, lenOfLen=2) 0x00 0x38 -> leading zero in the length.
+    assert.throws(() => qc.decodeRlp("0xb9003800"), /leading zero/i);
+  });
+
+  it("rejects a length that overflows MAX_SAFE_INTEGER (negative)", () => {
+    // 0xbf (long string, lenOfLen=8) followed by an 8-byte length starting at 0x20.
+    assert.throws(() => qc.decodeRlp("0xbf2000000000000000"), /maximum safe integer/i);
+  });
+
+  it("round-trips a canonical long string (> 55 bytes) (positive)", () => {
+    const big = "0x" + "ab".repeat(60); // 60-byte string -> long-string form
+    const encoded = qc.encodeRlp(big);
+    const decoded = qc.decodeRlp(encoded);
+    assert.equal(decoded, big);
+  });
+
+  it("round-trips a canonical nested list (positive)", () => {
+    const encoded = qc.encodeRlp([["0x01", "0x02"], "0x03"]);
+    const decoded = qc.decodeRlp(encoded);
+    assert.deepEqual(decoded, [["0x01", "0x02"], "0x03"]);
+  });
+});
  

@@ -63,3 +63,36 @@ describe("populateTransaction + sendRawTransaction", () => {
   });
 });
 
+describe("Security: mandatory chainId for signing", () => {
+  logSuite("Security: mandatory chainId for signing");
+
+  it("offline signing without a chainId throws (negative)", async () => {
+    logTest("offline signing without a chainId throws", {});
+    await Initialize(null);
+    const w = qc.Wallet.createRandom(); // no provider connected
+    await assert.rejects(
+      () => w.signTransaction({ to: w.address, value: 0n, nonce: 0 }),
+      /chainId is required for signing/i,
+    );
+  });
+
+  it("offline signing with an explicit chainId succeeds (positive)", async () => {
+    logTest("offline signing with an explicit chainId succeeds", {});
+    await Initialize(null);
+    const w = qc.Wallet.createRandom();
+    const raw = await w.signTransaction({ to: w.address, value: 0n, nonce: 0, chainId: 123123 });
+    assert.equal(typeof raw, "string");
+    assert.ok(raw.startsWith("0x"));
+  });
+
+  it("signing resolves chainId from a connected provider (positive)", async () => {
+    logTest("signing resolves chainId from a connected provider", {});
+    await Initialize(null);
+    const provider = new qc.JsonRpcProvider("http://127.0.0.1:9999", 123123);
+    const w = qc.Wallet.createRandom().connect(provider);
+    const raw = await w.signTransaction({ to: w.address, value: 0n, nonce: 0 });
+    assert.equal(typeof raw, "string");
+    assert.ok(raw.startsWith("0x"));
+  });
+});
+

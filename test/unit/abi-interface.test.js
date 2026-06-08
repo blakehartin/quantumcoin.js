@@ -87,11 +87,18 @@
      const iface = new qc.Interface([]);
      assert.throws(() => iface.parseTransaction(), (e) => e && e.code === "NOT_IMPLEMENTED");
      assert.throws(() => iface.parseError(), (e) => e && e.code === "NOT_IMPLEMENTED");
-     assert.throws(() => iface.getSighash(), (e) => e && e.code === "NOT_IMPLEMENTED");
-     assert.throws(() => iface.getEventTopic(), (e) => e && e.code === "NOT_IMPLEMENTED");
-     assert.equal(iface.getFallback(), null);
-     assert.equal(iface.getReceive(), null);
-   });
+    assert.throws(() => iface.getSighash(), (e) => e && e.code === "NOT_IMPLEMENTED");
+    assert.equal(iface.getFallback(), null);
+    assert.equal(iface.getReceive(), null);
+  });
+
+  it("getEventTopic returns the event signature hash", () => {
+    const iface = new qc.Interface([
+      { type: "event", name: "E", anonymous: false, inputs: [{ name: "x", type: "uint256", indexed: false }] },
+    ]);
+    assert.match(iface.getEventTopic("E"), /^0x[0-9a-f]{64}$/);
+    assert.throws(() => iface.getEventTopic("Nope"), (e) => e && e.code === "INVALID_ARGUMENT");
+  });
  });
  
  describe("AbiCoder", () => {

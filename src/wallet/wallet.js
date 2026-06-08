@@ -34,6 +34,32 @@ function _bytesToNumberArray(bytes) {
   return Array.from(bytes);
 }
 
+/**
+ * Verify that a private/public key pair is internally consistent (the public
+ * key really corresponds to the private key). Constructing a wallet from a
+ * mismatched pair must fail loudly here rather than silently producing a wallet
+ * that signs with one key but claims another.
+ *
+ * NOTE: `qcsdk.verifyWallet` requires the raw (non-`0x`-prefixed) address form,
+ * so we build the verification wallet from `addressFromPublicKey` directly
+ * (mirroring the original `fromKeys` flow) rather than reusing a wallet that may
+ * carry a normalized `0x` address.
+ *
+ * @param {Uint8Array} privateKeyBytes
+ * @param {Uint8Array} publicKeyBytes
+ */
+function _assertKeyPairValid(privateKeyBytes, publicKeyBytes) {
+  const privArr = _bytesToNumberArray(privateKeyBytes);
+  const pubArr = _bytesToNumberArray(publicKeyBytes);
+  const addr = qcsdk.addressFromPublicKey(pubArr);
+  if (typeof addr !== "string") throw makeError("addressFromPublicKey failed", "UNKNOWN_ERROR", {});
+  const checkWallet = new qcsdk.Wallet(addr, privArr, pubArr);
+  const verified = qcsdk.verifyWallet(checkWallet);
+  if (verified !== true) {
+    throw makeError("verifyWallet failed: the provided key pair is invalid", "INVALID_ARGUMENT", { verified });
+  }
+}
+
 const _maxSafeInt = 0x1fffffffffffffn; // 2^53 - 1
 
 function _getBigInt(value, name) {
@@ -163,6 +189,19 @@ class BaseWallet extends AbstractSigner {
    * @returns {Promise<string>}
    */
   async signTransaction(tx) {
+    const { raw } = await this._signDetailed(tx);
+    return raw;
+  }
+
+  /**
+   * Internal: sign a transaction and return both the raw serialized transaction
+   * and the signer-computed transaction hash. The hash is later used to
+   * verify that an untrusted RPC node broadcast exactly the transaction we
+   * signed rather than substituting a different one.
+   * @param {import("../providers/provider").TransactionRequest} tx
+   * @returns {Promise<{ raw: string, hash: string|null }>}
+   */
+  async _signDetailed(tx) {
     _requireInitialized();
     assertArgument(tx && typeof tx === "object", "invalid tx", "tx", tx);
 
@@ -192,8 +231,31 @@ class BaseWallet extends AbstractSigner {
     }
     assertArgument(Number.isInteger(nonce) && nonce >= 0, "invalid nonce", "nonce", nonce);
 
+    // `chainId` remains accepted from the tx (e.g. via contract overrides). We
+    // intentionally do NOT assert it against the
+    // provider here because `chainId` in quantum-coin-js-sdk (qcsdk) defaults to
+    // 123123 internally — an unset chainId resolves to that network default rather
+    // than being left unbound. Cross-chain replay risk is therefore bounded by the
+    // qcsdk default; explicit per-call chainId overrides are caller responsibility.
     const chainId = tx.chainId != null ? tx.chainId : (this.provider && this.provider.chainId != null ? this.provider.chainId : null);
     const signingContext = tx.signingContext ?? null;
+
+    // chainId is mandatory for signing. Without it the signed transaction is
+    // not bound to a network and can be replayed on a different chain. Online
+    // flows resolve chainId from the connected provider; offline signing must
+    // pass tx.chainId explicitly.
+    let chainIdNum = null;
+    try {
+      chainIdNum = chainId == null ? null : _getNumber(chainId, "tx.chainId");
+    } catch {
+      chainIdNum = null;
+    }
+    assertArgument(
+      chainIdNum != null && chainIdNum >= 0,
+      "chainId is required for signing; pass tx.chainId or connect to a provider",
+      "chainId",
+      chainId,
+    );
 
     /** @type {any} */
     const qcWallet =
@@ -228,7 +290,11 @@ class BaseWallet extends AbstractSigner {
     }
     const raw = signResult.txnData;
     if (typeof raw !== "string") throw makeError("signRawTransaction did not return txnData", "UNKNOWN_ERROR", {});
-    return normalizeHex(raw);
+    let hash = null;
+    if (typeof signResult.txnHash === "string" && signResult.txnHash.length > 0) {
+      hash = normalizeHex(signResult.txnHash).toLowerCase();
+    }
+    return { raw: normalizeHex(raw), hash };
   }
 
   /**
@@ -238,8 +304,10 @@ class BaseWallet extends AbstractSigner {
    */
   async sendTransaction(tx) {
     if (!this.provider) throw makeError("missing provider", "UNKNOWN_ERROR", { operation: "sendTransaction" });
-    const raw = await this.signTransaction({ ...tx, from: this.address });
-    return this.provider.sendTransaction(raw);
+    const { raw, hash } = await this._signDetailed({ ...tx, from: this.address });
+    // Tell the provider which hash we expect so it can reject a node that
+    // broadcasts (or echoes back) a different transaction than the one we signed.
+    return this.provider.sendTransaction(raw, hash ? { expectedHash: hash } : undefined);
   }
 }
 
@@ -280,6 +348,11 @@ class Wallet extends BaseWallet {
       _bytesToNumberArray(signingKey.privateKeyBytes),
       _bytesToNumberArray(signingKey.publicKeyBytes),
     );
+
+    // Central choke point — every Wallet (createRandom/fromPhrase/fromSeed/
+    // fromEncryptedJsonSync/fromKeys/connect all funnel through this constructor)
+    // is verified for key-pair consistency before it can be used to sign.
+    _assertKeyPairValid(signingKey.privateKeyBytes, signingKey.publicKeyBytes);
 
     super(signingKey, provider || null, { address: qcAddress }, qcWallet);
   }
@@ -323,6 +396,15 @@ class Wallet extends BaseWallet {
     if (this._seed != null) {
       return Wallet.encryptSeedSync(hexToBytes(this._seed), password);
     }
+    // A Uint8Array password is decoded as UTF-8 with NFC normalization below.
+    // For arbitrary (non-UTF-8) byte passwords this is
+    // lossy — invalid sequences become U+FFFD — so a binary password may not
+    // round-trip and the keystore could fail to reopen. This is intentionally left
+    // as-is because the password->key mapping is part of the shared QuantumCoin
+    // keystore format owned by qcsdk (and interoperable with the Desktop/Mobile/Web
+    // /CLI wallets); changing it risks breaking existing keystores and cross-app
+    // interop. Prefer string passphrases. (Fixing correctly requires a keystore-spec
+    // decision, not a local change.)
     const pw = typeof password === "string"
       ? password.normalize("NFC")
       : Buffer.from(arrayify(password)).toString("utf8").normalize("NFC");
@@ -346,6 +428,10 @@ class Wallet extends BaseWallet {
     assertArgument(Array.isArray(seedArr), "seed must be an array of numbers or Uint8Array", "seed", seed);
     const allowedLengths = [64, 72, 96];
     assertArgument(allowedLengths.includes(seedArr.length), "seed must be 64, 72, or 96 bytes", "seed", seedArr.length);
+    // See encryptSync — a Uint8Array password is decoded as UTF-8/NFC, which is
+    // lossy for arbitrary byte passwords. Left as-is
+    // because the password->key mapping is part of the shared qcsdk keystore format
+    // (cross-app interop); prefer string passphrases.
     const pw = typeof password === "string"
       ? password.normalize("NFC")
       : Buffer.from(arrayify(password)).toString("utf8").normalize("NFC");
@@ -502,11 +588,8 @@ class Wallet extends BaseWallet {
     if (typeof addr !== "string") throw makeError("addressFromPublicKey failed", "UNKNOWN_ERROR", {});
 
     const qcWallet = new qcsdk.Wallet(addr, privArr, pubArr);
-    const verified = qcsdk.verifyWallet(qcWallet);
-    if (verified !== true) {
-      throw makeError("verifyWallet failed: the provided key pair is invalid", "INVALID_ARGUMENT", { verified });
-    }
-
+    // Key-pair verification now happens centrally in the Wallet constructor
+    // (reached via _fromQcWallet -> new Wallet). No redundant verify here.
     return Wallet._fromQcWallet(qcWallet, provider || null);
   }
 
