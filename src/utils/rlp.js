@@ -103,9 +103,14 @@ function _encode(value) {
 function _readLen(bytes, offset, lenOfLen) {
   if (lenOfLen === 0) return 0;
   if (offset + lenOfLen > bytes.length) throw new Error("RLP: insufficient data for length");
+  // Canonical encoding forbids a leading zero byte in the length field.
+  if (bytes[offset] === 0) throw new Error("RLP: non-canonical length (leading zero byte)");
+  // Accumulate with multiplication (not `<< 8`, which is a signed 32-bit op
+  // that overflows/wraps for 4+ byte lengths) and reject impossibly large lengths.
   let len = 0;
   for (let i = 0; i < lenOfLen; i++) {
-    len = (len << 8) | bytes[offset + i];
+    len = len * 256 + bytes[offset + i];
+    if (len > Number.MAX_SAFE_INTEGER) throw new Error("RLP: length exceeds maximum safe integer");
   }
   return len;
 }
@@ -128,6 +133,9 @@ function _decode(bytes, start, end, depth) {
     const dataStart = start + 1;
     const dataEnd = dataStart + len;
     if (dataEnd > end) throw new Error("RLP: out of bounds");
+    // Canonical encoding requires a single byte < 0x80 to be encoded as
+    // itself, never as a 1-byte string.
+    if (len === 1 && bytes[dataStart] < 0x80) throw new Error("RLP: non-canonical single byte encoding");
     const out = bytesToHex(bytes.slice(dataStart, dataEnd));
     return { value: out, next: dataEnd };
   }
@@ -136,6 +144,8 @@ function _decode(bytes, start, end, depth) {
   if (prefix <= 0xbf) {
     const lenOfLen = prefix - 0xb7;
     const len = _readLen(bytes, start + 1, lenOfLen);
+    // Lengths <= 55 must use the short-string form.
+    if (len <= 55) throw new Error("RLP: non-canonical long string (length fits short form)");
     const dataStart = start + 1 + lenOfLen;
     const dataEnd = dataStart + len;
     if (dataEnd > end) throw new Error("RLP: out of bounds");
@@ -163,6 +173,8 @@ function _decode(bytes, start, end, depth) {
   // Long list
   const lenOfLen = prefix - 0xf7;
   const len = _readLen(bytes, start + 1, lenOfLen);
+  // Lengths <= 55 must use the short-list form.
+  if (len <= 55) throw new Error("RLP: non-canonical long list (length fits short form)");
   const dataStart = start + 1 + lenOfLen;
   const dataEnd = dataStart + len;
   if (dataEnd > end) throw new Error("RLP: out of bounds");

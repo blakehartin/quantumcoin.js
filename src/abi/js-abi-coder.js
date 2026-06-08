@@ -304,7 +304,21 @@ function encodeFunctionData(name, inputs, values) {
   return normalizeHex(selector + strip0x(bytesToHex(enc)));
 }
 
+// A 32-byte word must lie fully within the data. Without this check
+// `data.slice(offset, offset + 32)` silently returns a short/empty array, so an
+// out-of-bounds read decodes to `0n` / the zero address — letting a malicious RPC
+// response corrupt static return values (e.g. a balance silently reads as 0).
+function _assertWordInBounds(data, offset) {
+  if (!Number.isInteger(offset) || offset < 0 || offset + 32 > data.length) {
+    throw makeError("ABI decoding: read past end of data", "INVALID_ARGUMENT", {
+      offset,
+      length: data.length,
+    });
+  }
+}
+
 function _readWordAsBigInt(data, offset) {
+  _assertWordInBounds(data, offset);
   const chunk = data.slice(offset, offset + 32);
   const hex = bytesToHex(chunk);
   return BigInt(hex);
@@ -338,11 +352,13 @@ function _decodeBool(data, offset) {
 }
 
 function _decodeAddress(data, offset) {
+  _assertWordInBounds(data, offset);
   const chunk = data.slice(offset, offset + 32);
   return normalizeHex(bytesToHex(chunk));
 }
 
 function _decodeFixedBytes(type, data, offset) {
+  _assertWordInBounds(data, offset);
   const n = _bytesNLen(type);
   const chunk = data.slice(offset, offset + 32);
   return normalizeHex(bytesToHex(chunk.slice(0, n)));
@@ -351,6 +367,12 @@ function _decodeFixedBytes(type, data, offset) {
 function _decodeBytesDynamic(data, baseOffset) {
   const len = _readWordAsNumber(data, baseOffset);
   const start = baseOffset + 32;
+  // The declared length must fit within the available data; otherwise a
+  // malicious response could declare a huge length and cause silent truncation
+  // or oversized allocation.
+  if (start + len > data.length) {
+    throw makeError("ABI decoding: bytes length exceeds available data", "INVALID_ARGUMENT", { length: len });
+  }
   const out = data.slice(start, start + len);
   return normalizeHex(bytesToHex(out));
 }
@@ -358,6 +380,10 @@ function _decodeBytesDynamic(data, baseOffset) {
 function _decodeString(data, baseOffset) {
   const len = _readWordAsNumber(data, baseOffset);
   const start = baseOffset + 32;
+  // The declared length must fit within the available data.
+  if (start + len > data.length) {
+    throw makeError("ABI decoding: string length exceeds available data", "INVALID_ARGUMENT", { length: len });
+  }
   const out = data.slice(start, start + len);
   return bytesToUtf8(out);
 }
@@ -377,6 +403,22 @@ function decodeTupleLike(params, data, baseOffset, depth) {
     const p = ps[i];
     if (_isDynamicType(p)) {
       const rel = _readWordAsNumber(data, baseOffset + headOff);
+      // The dynamic offset is attacker-controlled. In canonical ABI encoding
+      // the tail always starts at or after the head, so reject offsets that point
+      // back into the head region (aliasing) and offsets that fall outside the
+      // available data before following the pointer.
+      if (rel < headSize) {
+        throw makeError("ABI decoding: dynamic offset points into head region", "INVALID_ARGUMENT", {
+          offset: rel,
+          headSize,
+        });
+      }
+      if (baseOffset + rel + 32 > data.length) {
+        throw makeError("ABI decoding: dynamic offset out of bounds", "INVALID_ARGUMENT", {
+          offset: rel,
+          length: data.length,
+        });
+      }
       values.push(decodeParam(p, data, baseOffset + rel, depth));
       headOff += 32;
     } else {
@@ -385,7 +427,6 @@ function decodeTupleLike(params, data, baseOffset, depth) {
     }
   }
 
-  void headSize;
   return values;
 }
 
@@ -400,11 +441,29 @@ function decodeParam(param, data, offset, depth) {
 
     if (_isDynamicArray(type)) {
       const len = _readWordAsNumber(data, offset);
-      const elems = decodeTupleLike(Array.from({ length: len }).map(() => innerParam), data, offset + 32, depth + 1);
+      // Each element consumes at least one 32-byte head word. Reject lengths
+      // that cannot possibly fit in the remaining calldata before allocating an
+      // array of `len` entries (prevents unbounded allocation / OOM from a
+      // hostile ABI response declaring an enormous length).
+      const elemsStart = offset + 32;
+      if (len * 32 > data.length - elemsStart) {
+        throw makeError("ABI decoding: array length exceeds available data", "INVALID_ARGUMENT", { length: len });
+      }
+      const elems = decodeTupleLike(Array.from({ length: len }).map(() => innerParam), data, elemsStart, depth + 1);
       return elems;
     }
 
     const n = _fixedArrayLength(type);
+    // A fixed-array dimension comes from the (attacker-controllable) type
+    // string. Each element occupies at least one 32-byte head word, so reject a
+    // length that cannot possibly fit in the remaining data before allocating an
+    // array of `n` entries (prevents unbounded allocation / OOM from e.g.
+    // `uint256[1000000000]`).
+    if (n * 32 > data.length - offset) {
+      throw makeError("ABI decoding: fixed array length exceeds available data", "INVALID_ARGUMENT", {
+        length: n,
+      });
+    }
     return decodeTupleLike(Array.from({ length: n }).map(() => innerParam), data, offset, depth + 1);
   }
 

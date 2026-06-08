@@ -3,7 +3,6 @@
  * @blockchainRequired false
  * @transactional false
  * @description Security tests for malformed input, edge cases, and invalid values.
- *              Covers all findings from the consolidated security audit.
  * Run with VERBOSE=1 for test names.
  */
 
@@ -36,8 +35,8 @@ describe("Security: Malformed Input", () => {
   });
 });
 
-describe("Security: C1 - Private key enumeration protection", () => {
-  logSuite("Security: C1 - Private key enumeration protection");
+describe("Security: Private key enumeration protection", () => {
+  logSuite("Security: Private key enumeration protection");
 
   it("JSON.stringify(wallet) must NOT contain privateKey or seed", async () => {
     logTest("JSON.stringify(wallet) must NOT contain privateKey or seed", {});
@@ -79,8 +78,8 @@ describe("Security: C1 - Private key enumeration protection", () => {
   });
 });
 
-describe("Security: C3 - Wallet.connect() preserves state", () => {
-  logSuite("Security: C3 - Wallet.connect() preserves state");
+describe("Security: Wallet.connect() preserves state", () => {
+  logSuite("Security: Wallet.connect() preserves state");
 
   it("connect() preserves seed", async () => {
     logTest("connect() preserves seed", {});
@@ -96,8 +95,8 @@ describe("Security: C3 - Wallet.connect() preserves state", () => {
   });
 });
 
-describe("Security: C4 - KDF string password handling", () => {
-  logSuite("Security: C4 - KDF string password handling");
+describe("Security: KDF string password handling", () => {
+  logSuite("Security: KDF string password handling");
 
   it("pbkdf2 with plain string password does not crash", async () => {
     logTest("pbkdf2 with plain string password does not crash", {});
@@ -121,8 +120,8 @@ describe("Security: C4 - KDF string password handling", () => {
   });
 });
 
-describe("Security: H2 - Numeric precision in signTransaction", () => {
-  logSuite("Security: H2 - Numeric precision in signTransaction");
+describe("Security: Numeric precision in signTransaction", () => {
+  logSuite("Security: Numeric precision in signTransaction");
 
   it("rejects number value above MAX_SAFE_INTEGER", async () => {
     logTest("rejects number value above MAX_SAFE_INTEGER", {});
@@ -157,8 +156,8 @@ describe("Security: H2 - Numeric precision in signTransaction", () => {
   });
 });
 
-describe("Security: M3 - Password strength enforcement", () => {
-  logSuite("Security: M3 - Password strength enforcement");
+describe("Security: Password strength enforcement", () => {
+  logSuite("Security: Password strength enforcement");
 
   it("encryptSync rejects password shorter than 12 characters", async () => {
     logTest("encryptSync rejects password shorter than 12 characters", {});
@@ -177,8 +176,8 @@ describe("Security: M3 - Password strength enforcement", () => {
   });
 });
 
-describe("Security: M4 - Message signing removed", () => {
-  logSuite("Security: M4 - Message signing removed");
+describe("Security: Message signing removed", () => {
+  logSuite("Security: Message signing removed");
 
   it("hashMessage is not exported", () => {
     logTest("hashMessage is not exported", {});
@@ -201,8 +200,8 @@ describe("Security: M4 - Message signing removed", () => {
   });
 });
 
-describe("Security: M6 - Error messages do not leak secrets", () => {
-  logSuite("Security: M6 - Error messages do not leak secrets");
+describe("Security: Error messages do not leak secrets", () => {
+  logSuite("Security: Error messages do not leak secrets");
 
   it("fromKeys error does not contain actual key bytes", async () => {
     logTest("fromKeys error does not contain actual key bytes", {});
@@ -218,8 +217,8 @@ describe("Security: M6 - Error messages do not leak secrets", () => {
   });
 });
 
-describe("Security: M7 - _hexToBigInt handles '0x'", () => {
-  logSuite("Security: M7 - _hexToBigInt handles '0x'");
+describe("Security: _hexToBigInt handles '0x'", () => {
+  logSuite("Security: _hexToBigInt handles '0x'");
 
   it("getBalance does not crash on '0x' response", async () => {
     logTest("getBalance does not crash on '0x' response", {});
@@ -227,8 +226,8 @@ describe("Security: M7 - _hexToBigInt handles '0x'", () => {
   });
 });
 
-describe("Security: L3 - RLP depth limit", () => {
-  logSuite("Security: L3 - RLP depth limit");
+describe("Security: RLP depth limit", () => {
+  logSuite("Security: RLP depth limit");
 
   it("rejects deeply nested RLP (depth > 64)", () => {
     logTest("rejects deeply nested RLP (depth > 64)", {});
@@ -248,8 +247,8 @@ describe("Security: L3 - RLP depth limit", () => {
   });
 });
 
-describe("Security: M2 - Seed phrase with invalid words", () => {
-  logSuite("Security: M2 - Seed phrase with invalid words");
+describe("Security: Seed phrase with invalid words", () => {
+  logSuite("Security: Seed phrase with invalid words");
 
   it("rejects gibberish words of correct count", async () => {
     logTest("rejects gibberish words of correct count", {});
@@ -269,8 +268,8 @@ describe("Security: M2 - Seed phrase with invalid words", () => {
   });
 });
 
-describe("Security: L6 - Keccak-256 test vectors", () => {
-  logSuite("Security: L6 - Keccak-256 test vectors");
+describe("Security: Keccak-256 test vectors", () => {
+  logSuite("Security: Keccak-256 test vectors");
 
   it("keccak256 of empty bytes matches known digest", async () => {
     logTest("keccak256 of empty bytes matches known digest", {});
@@ -293,8 +292,8 @@ describe("Security: L6 - Keccak-256 test vectors", () => {
   });
 });
 
-describe("Security: H5 - BigInt in provider params", () => {
-  logSuite("Security: H5 - BigInt in provider params");
+describe("Security: BigInt in provider params", () => {
+  logSuite("Security: BigInt in provider params");
 
   it("JsonRpcProvider serializes BigInt params without crashing", async (t) => {
     logTest("JsonRpcProvider serializes BigInt params without crashing", {});
@@ -318,8 +317,8 @@ describe("Security: H5 - BigInt in provider params", () => {
   });
 });
 
-describe("Security: H6 - Per-instance RPC IDs", () => {
-  logSuite("Security: H6 - Per-instance RPC IDs");
+describe("Security: Per-instance RPC IDs", () => {
+  logSuite("Security: Per-instance RPC IDs");
 
   it("different provider instances have independent ID counters", () => {
     logTest("different provider instances have independent ID counters", {});

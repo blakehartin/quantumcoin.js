@@ -44,7 +44,17 @@ function _hexToBigInt(hex) {
 }
 
 function _hexToNumber(hex) {
-  return Number(_hexToBigInt(hex));
+  // RPC quantities are untrusted. Previously `Number(bigint)` silently
+  // truncated values above 2^53, corrupting blockNumber/nonce/status/indices used
+  // in confirmation math. We keep returning a `number` (no signature/type change),
+  // but fail loudly for out-of-range values instead of returning a corrupted one.
+  // Real chain values are far below MAX_SAFE_INTEGER, so honest flows are
+  // unaffected. (Returning bigint would break field types and wait() arithmetic.)
+  const bi = _hexToBigInt(hex);
+  if (bi > BigInt(Number.MAX_SAFE_INTEGER) || bi < BigInt(Number.MIN_SAFE_INTEGER)) {
+    throw makeError("RPC quantity exceeds safe integer range", "NUMERIC_FAULT", { value: bi.toString() });
+  }
+  return Number(bi);
 }
   
 /**
@@ -52,6 +62,47 @@ function _hexToNumber(hex) {
  * @param {number|string|undefined} blockTag
  * @returns {string|undefined}
  */
+/**
+ * Build a lowercase Set of allowed log addresses from a filter's `address` field
+ * (string or string[]). Returns null when no address constraint is present.
+ * @param {string|string[]|undefined|null} address
+ * @returns {Set<string>|null}
+ */
+function _normalizeAddressFilter(address) {
+  if (address == null) return null;
+  const list = Array.isArray(address) ? address : [address];
+  const set = new Set();
+  for (const a of list) {
+    if (typeof a === "string" && a.length > 0) set.add(a.toLowerCase());
+  }
+  return set.size ? set : null;
+}
+
+/**
+ * Check a log's topics against a requested topics filter (eth_getLogs
+ * semantics). Each filter position may be null (wildcard), a string (exact
+ * match), or an array of strings (any match). Used to drop logs a malicious node
+ * returns that do not actually match the requested event topic(s).
+ * @param {any[]} logTopics
+ * @param {(string|string[]|null)[]} filterTopics
+ * @returns {boolean}
+ */
+function _topicsMatch(logTopics, filterTopics) {
+  if (!Array.isArray(filterTopics)) return true;
+  const topics = Array.isArray(logTopics) ? logTopics : [];
+  for (let i = 0; i < filterTopics.length; i++) {
+    const want = filterTopics[i];
+    if (want == null) continue; // wildcard position
+    const have = typeof topics[i] === "string" ? topics[i].toLowerCase() : null;
+    if (have == null) return false;
+    const allowed = (Array.isArray(want) ? want : [want])
+      .filter((t) => typeof t === "string")
+      .map((t) => t.toLowerCase());
+    if (allowed.length && !allowed.includes(have)) return false;
+  }
+  return true;
+}
+
 function _blockTagToHex(blockTag) {
   if (blockTag === undefined || blockTag === null) return undefined;
   const s = String(blockTag).toLowerCase();
@@ -263,7 +314,23 @@ class AbstractProvider extends Provider {
   async getTransaction(txHash) {
     const tx = await this._perform("eth_getTransactionByHash", [txHash]);
     if (!tx) return null;
-    return new TransactionResponse(tx, this);
+    const result = new TransactionResponse(tx, this);
+    // Do not trust the node to return the transaction we actually asked for.
+    // When the response carries a hash, it must match the requested hash;
+    // otherwise a malicious node could substitute a different transaction.
+    if (
+      typeof txHash === "string" &&
+      typeof result.hash === "string" &&
+      result.hash.length > 0 &&
+      result.hash.toLowerCase() !== txHash.toLowerCase()
+    ) {
+      throw makeError("RPC node returned a transaction whose hash does not match the requested hash", "UNKNOWN_ERROR", {
+        operation: "getTransaction",
+        expected: txHash,
+        got: result.hash,
+      });
+    }
+    return result;
   }
 
   /**
@@ -273,7 +340,23 @@ class AbstractProvider extends Provider {
   async getTransactionReceipt(txHash) {
     const receipt = await this._perform("eth_getTransactionReceipt", [txHash]);
     if (!receipt) return null;
-    return new TransactionReceipt(receipt, this);
+    const result = new TransactionReceipt(receipt, this);
+    // The receipt must belong to the transaction we asked about. A node must
+    // not be able to confirm an unrelated/fabricated transaction (which would let
+    // wait() report success for the wrong tx).
+    if (
+      typeof txHash === "string" &&
+      typeof result.transactionHash === "string" &&
+      result.transactionHash.length > 0 &&
+      result.transactionHash.toLowerCase() !== txHash.toLowerCase()
+    ) {
+      throw makeError("RPC node returned a receipt whose hash does not match the requested hash", "UNKNOWN_ERROR", {
+        operation: "getTransactionReceipt",
+        expected: txHash,
+        got: result.transactionHash,
+      });
+    }
+    return result;
   }
 
   /**
@@ -299,15 +382,47 @@ class AbstractProvider extends Provider {
   /**
    * Broadcasts a signed transaction.
    * @param {TransactionRequest|string} tx
+   * @param {{ expectedHash?: string }=} opts Optional. When `expectedHash` is set,
+   *   the hash returned by the node (and the fetched-back transaction's hash) must
+   *   match it, otherwise an error is thrown (do not trust the RPC node to
+   *   broadcast the exact transaction that was signed).
    * @returns {Promise<TransactionResponse>}
    */
-  async sendTransaction(tx) {
+  async sendTransaction(tx, opts) {
     // For QuantumCoin.js, tx is expected to be a signed raw transaction hex string.
     const raw = typeof tx === "string" ? tx : tx?.raw;
     if (typeof raw !== "string") throw makeError("sendTransaction requires a signed raw transaction string", "INVALID_ARGUMENT", { tx });
+    const expectedHash =
+      opts && typeof opts.expectedHash === "string" && opts.expectedHash.length > 0 ? opts.expectedHash.toLowerCase() : null;
+
     const hash = await this._perform("eth_sendRawTransaction", [raw]);
+
+    // The node returns the hash it claims to have accepted. If we know the
+    // hash of the transaction we signed, reject any mismatch — a malicious or
+    // buggy node must not be able to silently substitute a different transaction.
+    if (expectedHash != null && typeof hash === "string" && hash.length > 0) {
+      if (hash.toLowerCase() !== expectedHash) {
+        throw makeError("RPC node returned a transaction hash that does not match the signed transaction", "UNKNOWN_ERROR", {
+          operation: "sendTransaction",
+          expected: expectedHash,
+          got: hash,
+        });
+      }
+    }
+
     // Fetch back transaction (best-effort)
     const result = await this.getTransaction(hash);
+
+    // Verify the fetched-back transaction's hash too, so a node cannot return
+    // a fabricated transaction object under the correct hash lookup.
+    if (result && expectedHash != null && typeof result.hash === "string" && result.hash.toLowerCase() !== expectedHash) {
+      throw makeError("RPC node returned a transaction whose hash does not match the signed transaction", "UNKNOWN_ERROR", {
+        operation: "sendTransaction",
+        expected: expectedHash,
+        got: result.hash,
+      });
+    }
+
     return result || new TransactionResponse({ hash }, this);
   }
 
@@ -376,7 +491,25 @@ class AbstractProvider extends Provider {
     if (fromBlock !== undefined) normalized.fromBlock = fromBlock;
     if (toBlock !== undefined) normalized.toBlock = toBlock;
     const logs = await this._perform("eth_getLogs", [normalized]);
-    return (logs || []).map((l) => new Log(l, this));
+    const mapped = (logs || []).map((l) => new Log(l, this));
+
+    // A malicious node could return logs emitted by contracts other than the
+    // one(s) requested. When the filter constrains the address, drop any log whose
+    // address is not in that set so foreign-contract events cannot be injected.
+    const allowed = _normalizeAddressFilter(filter.address);
+    // A malicious node could return logs for a different event (different
+    // topic0) or from foreign contracts. Drop anything that does not match the
+    // requested address and topic constraints.
+    const hasTopicFilter = Array.isArray(filter.topics) && filter.topics.some((t) => t != null);
+    if (allowed || hasTopicFilter) {
+      return mapped.filter((l) => {
+        if (!l) return false;
+        if (allowed && !(typeof l.address === "string" && allowed.has(l.address.toLowerCase()))) return false;
+        if (hasTopicFilter && !_topicsMatch(l.topics, filter.topics)) return false;
+        return true;
+      });
+    }
+    return mapped;
   }
 }
 

@@ -890,3 +890,34 @@ describe("Address + Wallet (offline)", () => {
   });
 });
 
+describe("Security: universal key-pair verification", () => {
+  logSuite("Security: universal key-pair verification");
+
+  it("constructing a Wallet from a mismatched key pair throws (negative)", async () => {
+    logTest("constructing a Wallet from a mismatched key pair throws", {});
+    await Initialize(null);
+    const a = qc.Wallet.createRandom();
+    const b = qc.Wallet.createRandom();
+    // Private key of A paired with public key of B -> inconsistent key pair.
+    const mismatched = new qc.SigningKey(a.signingKey.privateKeyBytes, b.signingKey.publicKeyBytes);
+    assert.throws(() => new qc.Wallet(mismatched), /verifyWallet failed|invalid/i);
+  });
+
+  it("fromKeys still rejects a mismatched key pair (negative)", async () => {
+    logTest("fromKeys still rejects a mismatched key pair", {});
+    await Initialize(null);
+    const a = qc.Wallet.createRandom();
+    const b = qc.Wallet.createRandom();
+    assert.throws(() => qc.Wallet.fromKeys(a.privateKey, b.publicKey), /verifyWallet failed|invalid/i);
+  });
+
+  it("createRandom and fromKeys construct valid wallets (positive)", async () => {
+    logTest("createRandom and fromKeys construct valid wallets", {});
+    await Initialize(null);
+    const w = qc.Wallet.createRandom();
+    assert.ok(w.address.startsWith("0x"));
+    const w2 = qc.Wallet.fromKeys(w.privateKey, w.publicKey);
+    assert.equal(w2.address, w.address);
+  });
+});
+

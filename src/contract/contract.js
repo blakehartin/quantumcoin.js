@@ -37,6 +37,40 @@ function _isOverridesLike(value) {
   return true;
 }
 
+// Fields a caller is allowed to set via `overrides`. Protected routing /
+// payload fields (`to`, `data`, `from`) are intentionally excluded so that a
+// caller-supplied overrides object can never redirect the transaction to a
+// different contract or replace the encoded calldata. Unknown keys are dropped.
+const _ALLOWED_OVERRIDE_KEYS = [
+  "value",
+  "gasLimit",
+  "gasPrice",
+  "maxFeePerGas",
+  "maxPriorityFeePerGas",
+  "nonce",
+  "chainId",
+  "remarks",
+  "signingContext",
+];
+
+/**
+ * Return a copy of `overrides` containing only the allow-listed fields.
+ * Drops `to`, `data`, `from`, and any unknown/prototype keys so the protected
+ * fields computed by the contract layer always win.
+ * @param {any} overrides
+ * @returns {Record<string, any>}
+ */
+function _sanitizeOverrides(overrides) {
+  const out = {};
+  if (!_isOverridesLike(overrides)) return out;
+  for (const key of _ALLOWED_OVERRIDE_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(overrides, key) && overrides[key] !== undefined) {
+      out[key] = overrides[key];
+    }
+  }
+  return out;
+}
+
 /**
  * BaseContract placeholder (ethers-like).
  */
@@ -228,7 +262,8 @@ class Contract extends BaseContract {
     }
 
     const data = this.interface.encodeFunctionData(methodName, callArgs);
-    return { to: this.address, data, ...(overrides || {}) };
+    // Protected fields (to/data) must win over caller-supplied overrides.
+    return { ..._sanitizeOverrides(overrides), to: this.address, data };
   }
 
   /**
@@ -241,7 +276,8 @@ class Contract extends BaseContract {
   async call(methodName, args, overrides) {
     if (!this.provider) throw makeError("missing provider", "UNKNOWN_ERROR", { operation: "call" });
     const data = this.interface.encodeFunctionData(methodName, args);
-    const tx = { to: this.address, data, ...(overrides || {}) };
+    // Protected fields (to/data) must win over caller-supplied overrides.
+    const tx = { ..._sanitizeOverrides(overrides), to: this.address, data };
     const raw = await this.provider.call(tx, "latest");
     const decoded = this.interface.decodeFunctionResult(methodName, raw);
     return decoded;
@@ -257,7 +293,8 @@ class Contract extends BaseContract {
   async send(methodName, args, overrides) {
     if (!this.signer) throw makeError("missing signer", "UNKNOWN_ERROR", { operation: "send" });
     const data = this.interface.encodeFunctionData(methodName, args);
-    const tx = { to: this.address, data, ...(overrides || {}) };
+    // Protected fields (to/data) must win over caller-supplied overrides.
+    const tx = { ..._sanitizeOverrides(overrides), to: this.address, data };
     const resp = await this.signer.sendTransaction(tx);
     return new ContractTransactionResponse(resp);
   }
@@ -273,9 +310,19 @@ class Contract extends BaseContract {
     if (!this.provider) throw makeError("missing provider", "UNKNOWN_ERROR", { operation: "queryFilter" });
     const name = typeof event === "string" ? event : event?.name;
     assertArgument(typeof name === "string", "invalid event", "event", event);
-    const filter = { address: this.address, fromBlock, toBlock };
+
+    // Bind the query to the requested event's topic0 so a malicious node cannot
+    // return same-address logs for a *different* event. We both constrain the RPC
+    // filter and verify the returned logs' topic0 client-side.
+    const topic0 = this.interface.getEventTopic(name);
+    const filter = { address: this.address, topics: [topic0], fromBlock, toBlock };
     const logs = await this.provider.getLogs(filter);
-    return logs.map((l) => new EventLog(l));
+    return logs
+      .filter((l) => {
+        const t = Array.isArray(l && l.topics) ? l.topics[0] : null;
+        return typeof t === "string" && normalizeHex(t).toLowerCase() === topic0.toLowerCase();
+      })
+      .map((l) => new EventLog(l));
   }
 
   on(event, callback) {
@@ -356,5 +403,6 @@ module.exports = {
   ContractTransactionResponse,
   ContractTransactionReceipt,
   EventLog,
+  _sanitizeOverrides,
 };
 

@@ -518,8 +518,17 @@ class Interface {
   getSighash() {
     throw makeError("getSighash not implemented", "NOT_IMPLEMENTED", {});
   }
-  getEventTopic() {
-    throw makeError("getEventTopic not implemented", "NOT_IMPLEMENTED", {});
+  /**
+   * Compute the topic0 (event signature hash) for an event.
+   * @param {string|EventFragment|any} nameOrFragment
+   * @returns {string} normalized 0x-prefixed topic hash
+   */
+  getEventTopic(nameOrFragment) {
+    const name = typeof nameOrFragment === "string" ? nameOrFragment : nameOrFragment?.name;
+    const frag = this.getEvent(name);
+    const inputs = Array.isArray(frag.inputs) ? frag.inputs : [];
+    const sig = `${frag.name}(${inputs.map((i) => String(i.type || "")).join(",")})`;
+    return normalizeHex(id(sig));
   }
   getFallback() {
     return null;
