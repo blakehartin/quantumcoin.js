@@ -83,6 +83,27 @@ function _getNumber(value, name) {
   return Number(bi);
 }
 
+// Key type / public-key-length constants. The quantum-coin-js-sdk defines these
+// key types internally (KEY_TYPE_HYBRIDEDMLDSASLHDSA = 3,
+// KEY_TYPE_HYBRIDEDMLDSASLHDSA5 = 5) but does not export them, so we mirror them
+// here and derive the key type from the public key length.
+const KEY_TYPE_HYBRIDEDMLDSASLHDSA = 3;
+const KEY_TYPE_HYBRIDEDMLDSASLHDSA5 = 5;
+const PUBLIC_KEY_LENGTH_KEYTYPE3 = 1408;
+const PUBLIC_KEY_LENGTH_KEYTYPE5 = 2688;
+
+/**
+ * Maps a public key length to the wallet key type.
+ * @param {number} pubLen
+ * @returns {number} KEY_TYPE_HYBRIDEDMLDSASLHDSA (3) or KEY_TYPE_HYBRIDEDMLDSASLHDSA5 (5).
+ * @throws if the public key length is unsupported.
+ */
+function _keyTypeFromPublicKeyLength(pubLen) {
+  if (pubLen === PUBLIC_KEY_LENGTH_KEYTYPE3) return KEY_TYPE_HYBRIDEDMLDSASLHDSA;
+  if (pubLen === PUBLIC_KEY_LENGTH_KEYTYPE5) return KEY_TYPE_HYBRIDEDMLDSASLHDSA5;
+  throw makeError("unsupported public key size", "UNSUPPORTED_OPERATION", { publicKeyLength: pubLen });
+}
+
 /**
  * SigningKey wrapper (PQC private/public key bytes).
  */
@@ -468,14 +489,26 @@ class Wallet extends BaseWallet {
    */
   getSigningContext(fullSign) {
     const fs = fullSign ?? false;
-    const pubLen = this.signingKey.publicKeyBytes.length;
-    if (pubLen === 1408) {
+    const keyType = _keyTypeFromPublicKeyLength(this.signingKey.publicKeyBytes.length);
+    if (keyType === KEY_TYPE_HYBRIDEDMLDSASLHDSA) {
       return fs ? 2 : 0;
     }
-    if (pubLen === 2688) {
-      return 1;
-    }
-    throw makeError("unsupported public key size", "UNSUPPORTED_OPERATION", { publicKeyLength: pubLen });
+    return 1;
+  }
+
+  /**
+   * Returns the key type of this wallet, derived from its public key length:
+   * 3 (KEY_TYPE_HYBRIDEDMLDSASLHDSA) or 5 (KEY_TYPE_HYBRIDEDMLDSASLHDSA5).
+   *
+   * The key type drives gas-price selection via `getFeeData`. Note that the
+   * underlying quantum-coin-js-sdk gas-price model supports only DynamicFeeTx
+   * (dynamic-fee transactions); legacy/other transaction fee types are not supported.
+   *
+   * @returns {number} 3 or 5.
+   * @throws if the public key length is unsupported.
+   */
+  getKeyType() {
+    return _keyTypeFromPublicKeyLength(this.signingKey.publicKeyBytes.length);
   }
 
   /**
@@ -499,7 +532,12 @@ class Wallet extends BaseWallet {
   static createRandom(provider, keyType) {
     _requireInitialized();
     if (keyType != null) {
-      assertArgument(keyType === 3 || keyType === 5, "keyType must be null, 3, or 5", "keyType", keyType);
+      assertArgument(
+        keyType === KEY_TYPE_HYBRIDEDMLDSASLHDSA || keyType === KEY_TYPE_HYBRIDEDMLDSASLHDSA5,
+        "keyType must be null, 3, or 5",
+        "keyType",
+        keyType,
+      );
     }
     const words = qcsdk.newWalletSeedWords(keyType ?? null);
     if (!words || !Array.isArray(words)) {

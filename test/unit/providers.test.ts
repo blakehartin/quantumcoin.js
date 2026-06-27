@@ -9,6 +9,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import qc from "../../index";
+import { Initialize } from "../../config";
 import { logSuite, logTest } from "../verbose-logger";
 
 describe("JsonRpcProvider", () => {
@@ -247,5 +248,57 @@ describe("Extra providers", () => {
   it("FallbackProvider throws when no providers provided", () => {
     logTest("FallbackProvider throws when no providers provided", {});
     assert.throws(() => new qc.FallbackProvider([]));
+  });
+});
+
+describe("Provider.getFeeData", () => {
+  logSuite("Provider.getFeeData");
+
+  // Expected per-gas-unit prices (wei). BASE is keyType 3 (compact / context 0);
+  // keyType 3 full-sign is BASE x 30; keyType 5 is BASE x 20.
+  const FEE_BASE = 4761904761904760n;
+  const FEE_KT3_FULL = 142857142857142800n;
+  const FEE_KT5 = 95238095238095200n;
+
+  it("prices by keyType number", async () => {
+    logTest("prices by keyType number", {});
+    const p = new qc.JsonRpcProvider();
+    assert.strictEqual((await p.getFeeData(3)).gasPrice, FEE_BASE);
+    assert.strictEqual((await p.getFeeData(3, true)).gasPrice, FEE_KT3_FULL);
+    assert.strictEqual((await p.getFeeData(5)).gasPrice, FEE_KT5);
+    assert.strictEqual((await p.getFeeData(5, true)).gasPrice, FEE_KT5);
+  });
+
+  it("prices by wallet (reads keyType from wallet)", async () => {
+    logTest("prices by wallet", {});
+    await Initialize(null);
+    const p = new qc.JsonRpcProvider();
+
+    const w3 = qc.Wallet.createRandom(undefined, 3);
+    assert.strictEqual((await p.getFeeData(w3)).gasPrice, FEE_BASE);
+    assert.strictEqual((await p.getFeeData(w3, false)).gasPrice, FEE_BASE);
+    assert.strictEqual((await p.getFeeData(w3, null)).gasPrice, FEE_BASE);
+    assert.strictEqual((await p.getFeeData(w3, true)).gasPrice, FEE_KT3_FULL);
+
+    const w5 = qc.Wallet.createRandom(undefined, 5);
+    assert.strictEqual((await p.getFeeData(w5)).gasPrice, FEE_KT5);
+    assert.strictEqual((await p.getFeeData(w5, true)).gasPrice, FEE_KT5);
+  });
+
+  it("FeeData exposes only gasPrice (maxFeePerGas / maxPriorityFeePerGas unsupported)", async () => {
+    logTest("FeeData exposes only gasPrice", {});
+    const p = new qc.JsonRpcProvider();
+    const fd = await p.getFeeData(3);
+    assert.ok(fd instanceof qc.FeeData);
+    assert.strictEqual((fd as any).maxFeePerGas, undefined);
+    assert.strictEqual((fd as any).maxPriorityFeePerGas, undefined);
+  });
+
+  it("rejects invalid keyType and invalid first argument", async () => {
+    logTest("rejects invalid inputs", {});
+    const p = new qc.JsonRpcProvider();
+    await assert.rejects(() => p.getFeeData(99), /getGasPrice failed/);
+    await assert.rejects(() => p.getFeeData({} as any), /expected a Wallet or a keyType number/);
+    await assert.rejects(() => p.getFeeData(null as any), /expected a Wallet or a keyType number/);
   });
 });

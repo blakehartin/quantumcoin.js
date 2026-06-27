@@ -13,5 +13,6 @@ declare const _exports: {
     TransactionResponse: typeof import("./provider").TransactionResponse;
     TransactionReceipt: typeof import("./provider").TransactionReceipt;
     Log: typeof import("./provider").Log;
+    FeeData: typeof import("./provider").FeeData;
 };
 export = _exports;
