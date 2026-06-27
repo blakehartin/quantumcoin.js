@@ -874,4 +874,26 @@ describe("Address + Wallet (offline)", () => {
     (w.signingKey as any).publicKeyBytes = new Uint8Array(100);
     assert.throws(() => w.getSigningContext(), /unsupported public key size/);
   });
+
+  // ---------------------------------------------------------------------------
+  // getKeyType
+  // ---------------------------------------------------------------------------
+
+  it("getKeyType: 32-word and 48-word wallets (pubKey 1408) return 3", async () => {
+    await Initialize(null);
+    assert.strictEqual(qc.Wallet.fromPhrase(TEST_SEED_WORDS_32).getKeyType(), 3);
+    assert.strictEqual(qc.Wallet.fromPhrase(TEST_SEED_WORDS).getKeyType(), 3);
+  });
+
+  it("getKeyType: 36-word wallet (pubKey 2688) returns 5", async () => {
+    await Initialize(null);
+    assert.strictEqual(qc.Wallet.fromPhrase(TEST_SEED_WORDS_36).getKeyType(), 5);
+  });
+
+  it("getKeyType: throws for unsupported public key size", async () => {
+    await Initialize(null);
+    const w = qc.Wallet.fromPhrase(TEST_SEED_WORDS_32);
+    (w.signingKey as any).publicKeyBytes = new Uint8Array(100);
+    assert.throws(() => w.getKeyType(), /unsupported public key size/);
+  });
 });

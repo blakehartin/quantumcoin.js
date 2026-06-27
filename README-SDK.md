@@ -184,6 +184,7 @@ Base provider implementation. Subclasses implement `_perform`.
 - `getTransactionCount(address: string, blockTag?: string | null): Promise<number>`
 - `call(tx: TransactionRequest, blockTag?: string | null): Promise<string>`
 - `estimateGas(tx: TransactionRequest): Promise<bigint>`
+- `getFeeData(walletOrKeyType: Wallet | number, fullSign?: boolean | null): Promise<FeeData>` — returns fee data for a wallet (its key type is read via `getKeyType()`) or for a key type number (`3` or `5`) passed directly. `fullSign` applies only to key type `3` (full signing costs more gas) and is ignored for key type `5`. `FeeData` currently exposes a single field `gasPrice: bigint`, the price **per unit of gas** in wei (so the total transaction fee is `gasPrice * gasLimit`). Only DynamicFeeTx (dynamic-fee) transactions are supported; the EIP-1559 fields `maxFeePerGas` / `maxPriorityFeePerGas` are **not supported yet** (QuantumCoin has no base-fee / priority-tip model) and are absent from `FeeData`. Like ethers, this is a provider method; later releases may issue a network call (hence the `Promise`).
 - `getCode(address: string, blockTag?: string | null): Promise<string>`
 - `getStorageAt(address: string, position: bigint, blockTag?: string | null): Promise<string>`
 - `getLogs(filter: Filter | FilterByBlockHash): Promise<Log[]>`
@@ -403,6 +404,7 @@ User-facing wallet class.
 - `connect(provider: AbstractProvider): Wallet`
 - `getPhrase(): string[] | null` — returns the seed phrase (list of words) when the wallet has a seed, else `null`. Works for `createRandom`, `fromPhrase`, `fromSeed`, and `fromEncryptedJsonSync` on a version-5 keystore. Returns `null` for `fromKeys` and for v3/v4 keystores.
 - `getSigningContext(fullSign?: boolean | null): number` — returns the recommended signing context for this wallet (based on public key type). Setting `fullSign` to `true` may incur additional gas cost.
+- `getKeyType(): number` — returns the wallet's key type, derived from its public key length: `3` (HYBRIDEDMLDSASLHDSA) or `5` (HYBRIDEDMLDSASLHDSA5). The key type drives gas-price selection in `getFeeData`. Throws for an unsupported public key size.
 
 **Seed & phrase applicability**
 

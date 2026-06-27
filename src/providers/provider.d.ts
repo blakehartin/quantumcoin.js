@@ -94,6 +94,13 @@ export class AbstractProvider extends Provider {
      */
     estimateGas(tx: TransactionRequest): Promise<bigint>;
     /**
+     * Returns fee data (currently the gas price per unit of gas, in wei).
+     * Supports only DynamicFeeTx (dynamic-fee transactions); other fee tx types are not supported.
+     * @param walletOrKeyType A Wallet, or a key type number (3 or 5).
+     * @param fullSign Full signing (keyType 3 only; ignored for keyType 5).
+     */
+    getFeeData(walletOrKeyType: import("../wallet/wallet").Wallet | number, fullSign?: boolean | null): Promise<FeeData>;
+    /**
      * @param {string} address
      * @param {string=} blockTag
      * @returns {Promise<string>}
@@ -203,4 +210,13 @@ export class Log {
     getBlock(): Promise<Block>;
     getTransaction(): Promise<TransactionResponse>;
     getTransactionReceipt(): Promise<TransactionReceipt>;
+}
+/**
+ * Fee data for a transaction. Currently only `gasPrice` (per unit of gas, in wei)
+ * is populated. `maxFeePerGas` / `maxPriorityFeePerGas` are not supported yet:
+ * QuantumCoin uses a fixed per-scheme fee model with no EIP-1559 base fee / priority tip.
+ */
+export class FeeData {
+    constructor(gasPrice: bigint);
+    gasPrice: bigint | null;
 }

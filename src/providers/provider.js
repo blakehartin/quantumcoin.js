@@ -6,6 +6,7 @@
  */
 
 const { EventEmitter } = require("events");
+const qcsdk = require("quantum-coin-js-sdk");
 const { makeError, assertArgument } = require("../errors");
 const { normalizeHex, toQuantityHex, isHexString } = require("../internal/hex");
 
@@ -264,6 +265,20 @@ class Block {
 }
 
 /**
+ * Fee data for a transaction. Currently only `gasPrice` (per unit of gas, in wei)
+ * is populated. `maxFeePerGas` / `maxPriorityFeePerGas` are not supported yet:
+ * QuantumCoin uses a fixed per-scheme fee model with no EIP-1559 base fee / priority tip.
+ */
+class FeeData {
+  /**
+   * @param {bigint} gasPrice
+   */
+  constructor(gasPrice) {
+    this.gasPrice = gasPrice;
+  }
+}
+
+/**
  * Base Provider class.
  */
 class Provider extends EventEmitter {
@@ -460,6 +475,30 @@ class AbstractProvider extends Provider {
   }
 
   /**
+   * Returns fee data (currently the gas price per unit of gas, in wei).
+   * Supports only DynamicFeeTx (dynamic-fee transactions); other fee tx types are not supported.
+   * @param {import("../wallet/wallet").Wallet|number} walletOrKeyType A Wallet, or a key type number (3 or 5).
+   * @param {boolean|null=} fullSign  Full signing (keyType 3 only; ignored for keyType 5).
+   * @returns {Promise<FeeData>}
+   */
+  async getFeeData(walletOrKeyType, fullSign) {
+    let keyType;
+    if (typeof walletOrKeyType === "number") {
+      keyType = walletOrKeyType;
+    } else if (walletOrKeyType && typeof walletOrKeyType.getKeyType === "function") {
+      keyType = walletOrKeyType.getKeyType();
+    } else {
+      assertArgument(false, "expected a Wallet or a keyType number", "walletOrKeyType", walletOrKeyType);
+    }
+
+    const res = qcsdk.getGasPrice(keyType, fullSign ?? false);
+    if (!res || res.resultCode !== 0 || res.gasPrice == null) {
+      throw makeError("getGasPrice failed", "UNKNOWN_ERROR", { resultCode: res && res.resultCode, keyType });
+    }
+    return new FeeData(BigInt(res.gasPrice));
+  }
+
+  /**
    * @param {string} address
    * @param {string=} blockTag
    * @returns {Promise<string>}
@@ -520,5 +559,6 @@ module.exports = {
   TransactionResponse,
   TransactionReceipt,
   Log,
+  FeeData,
 };
 

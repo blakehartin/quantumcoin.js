@@ -71,6 +71,16 @@ export class Wallet extends BaseWallet {
      */
     getSigningContext(fullSign?: boolean | null): number;
     /**
+     * Returns the key type of this wallet, derived from its public key length:
+     * 3 (KEY_TYPE_HYBRIDEDMLDSASLHDSA) or 5 (KEY_TYPE_HYBRIDEDMLDSASLHDSA5).
+     *
+     * The key type drives gas-price selection via `getFeeData`. Note that the
+     * underlying quantum-coin-js-sdk gas-price model supports only DynamicFeeTx
+     * (dynamic-fee transactions); legacy/other transaction fee types are not supported.
+     * @returns {number} 3 or 5.
+     */
+    getKeyType(): number;
+    /**
      * Creates a new random wallet.
      * @param {import("../providers/provider").AbstractProvider=} provider
      * @param {number|null=} keyType  Optional key type: null (default=3), 3, or 5

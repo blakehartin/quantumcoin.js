@@ -106,6 +106,7 @@ declare const _exports: {
     TransactionResponse: typeof import("./providers/provider").TransactionResponse;
     TransactionReceipt: typeof import("./providers/provider").TransactionReceipt;
     Log: typeof import("./providers/provider").Log;
+    FeeData: typeof import("./providers/provider").FeeData;
     version: string;
     ZeroAddress: string;
     ZeroHash: string;
