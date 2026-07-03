@@ -26,7 +26,10 @@
     "tsx": "^4.19.0"
   },
   "dependencies": {
-    "quantum-coin-js-sdk": "1.0.37",
+    "quantum-coin-js-sdk": "1.0.39",
     "quantumcoin": "file:.."
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true
   }
 }

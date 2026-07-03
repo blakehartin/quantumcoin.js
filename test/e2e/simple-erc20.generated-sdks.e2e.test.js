@@ -68,6 +68,30 @@ function assertNoLegacyGenericTypes(pkgRoot, contractName, lang) {
   }
 }
 
+// Runs a read-only `npm audit` on the generated SDK and fails the test only when
+// actual vulnerabilities are reported. We never auto-fix/auto-approve anything:
+// npm's non-zero exit code and unrelated warnings (install-scripts, funding, notices)
+// are ignored; the pass/fail decision comes solely from the parsed JSON report.
+function assertNpmAuditClean(pkgRoot, label, env) {
+  if (!fs.existsSync(path.join(pkgRoot, "node_modules"))) {
+    const install = runNpm(["install", "--no-fund", "--no-audit"], pkgRoot, env);
+    assert.equal(install.status, 0, `${label}: npm install (for audit) failed:\n${install.stdout}\n${install.stderr}`);
+  }
+  const res = runNpm(["audit", "--json"], pkgRoot, env);
+  let report;
+  try {
+    report = JSON.parse(res.stdout);
+  } catch (err) {
+    assert.fail(`${label}: could not parse 'npm audit --json' output:\n${res.stdout}\n${res.stderr}`);
+  }
+  const vulns = (report && report.metadata && report.metadata.vulnerabilities) || {};
+  const total =
+    typeof vulns.total === "number"
+      ? vulns.total
+      : ["info", "low", "moderate", "high", "critical"].reduce((sum, k) => sum + (Number(vulns[k]) || 0), 0);
+  assert.equal(total, 0, `${label}: npm audit reported ${total} vulnerability(ies):\n${JSON.stringify(report.vulnerabilities || {}, null, 2)}`);
+}
+
 describe("SimpleERC20 generated SDKs", () => {
   it("generates TS and JS packages and runs their tests", async (t) => {
     logSuite("SimpleERC20 generated SDKs");
@@ -131,6 +155,9 @@ describe("SimpleERC20 generated SDKs", () => {
 
       assertNoLegacyGenericTypes(tsPkg, "SimpleERC20", "ts");
       assertNoLegacyGenericTypes(jsPkg, "SimpleERC20", "js");
+
+      assertNpmAuditClean(tsPkg, "TS package", process.env);
+      assertNpmAuditClean(jsPkg, "JS package", process.env);
 
       const env = { ...process.env, QC_RPC_URL: rpcUrl, QC_CHAIN_ID: String(chainId) };
 
