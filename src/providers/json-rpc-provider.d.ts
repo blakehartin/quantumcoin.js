@@ -6,6 +6,7 @@ export class JsonRpcProvider extends AbstractProvider {
     constructor(url?: string | undefined, chainId?: number | undefined);
     url: string;
     chainId: number;
+    _rpcId: number;
 }
 export class JsonRpcApiProvider extends JsonRpcProvider {
 }

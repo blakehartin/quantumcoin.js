@@ -30,13 +30,16 @@ export function ripemd160(data: string | Uint8Array): string;
 export function id(text: string): string;
 /**
  * Generate cryptographically strong random bytes.
+ *
+ * Uses the platform Web Crypto API (`globalThis.crypto`), which is available in
+ * modern browsers and Node.js 20+.
  * @param {number} length
  * @returns {Uint8Array}
  */
 export function randomBytes(length: number): Uint8Array;
 /**
  * Compute HMAC over data.
- * @param {string} algorithm
+ * @param {string} algorithm "sha256" or "sha512"
  * @param {string|Uint8Array} key
  * @param {string|Uint8Array} data
  * @returns {string}
@@ -48,7 +51,7 @@ export function computeHmac(algorithm: string, key: string | Uint8Array, data: s
  * @param {string|Uint8Array} salt
  * @param {number} iterations
  * @param {number} keylen
- * @param {string=} algorithm
+ * @param {string=} algorithm "sha256" (default) or "sha512"
  * @returns {string}
  */
 export function pbkdf2(password: string | Uint8Array, salt: string | Uint8Array, iterations: number, keylen: number, algorithm?: string | undefined): string;

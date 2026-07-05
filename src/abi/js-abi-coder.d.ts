@@ -4,5 +4,5 @@ export function needsJsAbi(params: any): boolean;
 export function canonicalType(param: any): any;
 export function functionSelectorHex(name: any, inputs: any): string;
 export function encodeFunctionData(name: any, inputs: any, values: any): string;
-export function encodeTupleLike(params: any, values: any): Uint8Array<any>;
+export function encodeTupleLike(params: any, values: any, depth: any): Uint8Array<any>;
 export function decodeFunctionResult(outputs: any, dataHex: any): any[];

@@ -12,6 +12,7 @@ This document is the **complete, detailed SDK reference** for QuantumCoin.js (et
   - [Install](#install)
   - [Initialization (required)](#initialization-required)
   - [Key differences vs ethers/Ethereum](#key-differences-vs-ethersethereum)
+  - [Platform support (Node.js and browser)](#platform-support-nodejs-and-browser)
 - [Configuration (`quantumcoin/config`)](#configuration-quantumcoinconfig)
   - [`Config`](#config)
   - [`Initialize(config)`](#initializeconfig)
@@ -99,6 +100,43 @@ await Initialize(new Config(123123, "https://public.rpc.quantumcoinapi.com"));
 - **Addresses are 32 bytes** (66 hex chars including `0x`)
 - **Signing and ABI encoding/decoding** are delegated to `quantum-coin-js-sdk` (WASM)
 - **Initialize must be called** once at startup for wallet/address/ABI helpers
+
+### Platform support (Node.js and browser)
+
+QuantumCoin.js is **platform agnostic** and runs in both Node.js (20+) and modern
+browsers. It does **not** depend on Node's built-in `crypto` module: all
+cryptographic primitives (`keccak256`, `sha256`, `sha512`, `ripemd160`,
+`computeHmac`, `pbkdf2`, `scrypt`/`scryptSync`) are provided by
+`quantum-coin-js-sdk` (WebAssembly), and `randomBytes` uses the standard Web
+Crypto API (`globalThis.crypto`).
+
+Because the crypto primitives come from `quantum-coin-js-sdk`, **the hashing and
+KDF helpers require `Initialize()` to have completed** before use. Calling them
+beforehand throws a `NOT_INITIALIZED` error:
+
+```js
+const qc = require("quantumcoin");
+const { Initialize } = require("quantumcoin/config");
+
+await Initialize(null);
+qc.keccak256(qc.toUtf8Bytes("hello")); // ok after Initialize()
+```
+
+Notes for browser usage:
+
+- Bundle your app with a browser bundler (esbuild, webpack, Vite, Rollup, etc.).
+  `quantum-coin-js-sdk` ships its WASM embedded, so no extra asset fetching or
+  `wasm_exec.js` wiring is required — just `require`/`import` the SDK and call
+  `Initialize()`.
+- The `IpcSocketProvider` (Unix domain socket / named pipe transport) is
+  **Node-only**; it lazily loads `node:net` and throws `NOT_IMPLEMENTED` in the
+  browser. `JsonRpcProvider` (via `fetch`), `WebSocketProvider` (via
+  `globalThis.WebSocket`) and `BrowserProvider` (EIP-1193) all work in browsers.
+  The package's `browser` field maps `node:net` to `false` so bundlers can drop
+  the IPC code path.
+
+The browser surface is validated by an automated headless-browser suite
+(`npm run test:browser`, Playwright + esbuild).
 
 ## Configuration (`quantumcoin/config`)
 
@@ -646,6 +684,12 @@ const asOutput: Uint256 = 123n;
 - `pbkdf2(password: BytesLike, salt: BytesLike, iterations: number, keylen: number, algorithm?: string): string`
 - `scrypt(password: BytesLike, salt: BytesLike, N: number, r: number, p: number, dkLen: number): Promise<string>`
 - `scryptSync(password: BytesLike, salt: BytesLike, N: number, r: number, p: number, dkLen: number): string`
+
+> These helpers are backed by `quantum-coin-js-sdk` (WASM) and therefore require
+> `Initialize()` to have completed first; otherwise they throw a
+> `NOT_INITIALIZED` error. `computeHmac` and `pbkdf2` support the `"sha256"`
+> (default) and `"sha512"` algorithms. `randomBytes` uses the Web Crypto API and
+> works without initialization.
 
 ### Units
 

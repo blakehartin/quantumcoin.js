@@ -11,6 +11,7 @@ export class WebSocketProvider extends AbstractProvider {
     constructor(url: string, chainId?: number | undefined);
     url: string;
     chainId: number;
+    _wsRpcId: number;
     /** @type {any|null} */
     _ws: any | null;
     /** @type {Promise<void>|null} */
@@ -27,7 +28,7 @@ export class WebSocketProvider extends AbstractProvider {
      */
     destroy(): void;
     _rejectAllPending(err: any): void;
-    _connect(): Promise<void>;
+    _connect(): Promise<void | null>;
 }
 export class IpcSocketProvider extends AbstractProvider {
     /**
@@ -40,6 +41,7 @@ export class IpcSocketProvider extends AbstractProvider {
      */
     constructor(path: string);
     path: string;
+    _ipcRpcId: number;
 }
 export class BrowserProvider extends AbstractProvider {
     /**

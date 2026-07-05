@@ -12,7 +12,7 @@ const qcsdk = require("quantum-coin-js-sdk");
 const seedWords = require("seed-words");
 const { JsonRpcProvider } = require("../providers/json-rpc-provider");
 const { assertArgument, assertSecretArgument, makeError } = require("../errors");
-const { arrayify, bytesToHex, hexToBytes, isHexString, normalizeHex } = require("../internal/hex");
+const { arrayify, bytesToHex, bytesToUtf8, hexToBytes, isHexString, normalizeHex } = require("../internal/hex");
 const { getAddress } = require("../utils/address");
 const { WeiPerEther } = require("../constants");
 
@@ -428,7 +428,7 @@ class Wallet extends BaseWallet {
     // decision, not a local change.)
     const pw = typeof password === "string"
       ? password.normalize("NFC")
-      : Buffer.from(arrayify(password)).toString("utf8").normalize("NFC");
+      : bytesToUtf8(arrayify(password)).normalize("NFC");
     assertSecretArgument(pw.length >= 12, "password must be at least 12 characters", "password");
     const json = qcsdk.serializeEncryptedWallet(this._qcWallet, pw);
     if (typeof json !== "string") throw makeError("serializeEncryptedWallet failed", "UNKNOWN_ERROR", {});
@@ -455,7 +455,7 @@ class Wallet extends BaseWallet {
     // (cross-app interop); prefer string passphrases.
     const pw = typeof password === "string"
       ? password.normalize("NFC")
-      : Buffer.from(arrayify(password)).toString("utf8").normalize("NFC");
+      : bytesToUtf8(arrayify(password)).normalize("NFC");
     assertSecretArgument(pw.length >= 12, "password must be at least 12 characters", "password");
     const json = qcsdk.serializeSeedAsEncryptedWallet(seedArr, pw);
     if (typeof json !== "string") throw makeError("serializeSeedAsEncryptedWallet failed", "UNKNOWN_ERROR", {});

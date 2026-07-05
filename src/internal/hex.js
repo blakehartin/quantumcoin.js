@@ -6,12 +6,16 @@
  * - All hex strings in this SDK are normalized to lowercase with a `0x` prefix.
  */
 
-const { TextEncoder, TextDecoder } = require("util");
+// TextEncoder/TextDecoder are available as globals in modern browsers and in
+// Node.js 20+, so we use the platform globals instead of requiring "util".
+// This keeps the module free of Node built-ins and usable in the browser.
+const _TextEncoder = globalThis.TextEncoder;
+const _TextDecoder = globalThis.TextDecoder;
 
 /** @type {TextEncoder} */
-const _utf8Encoder = new TextEncoder();
+const _utf8Encoder = new _TextEncoder();
 /** @type {TextDecoder} */
-const _utf8Decoder = new TextDecoder("utf-8", { fatal: false });
+const _utf8Decoder = new _TextDecoder("utf-8", { fatal: false });
 
 /**
  * Return true if `value` is a Uint8Array.

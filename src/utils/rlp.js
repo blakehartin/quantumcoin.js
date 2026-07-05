@@ -11,8 +11,8 @@ const { arrayify, bytesToHex, hexToBytes, isHexString, normalizeHex, utf8ToBytes
 function _toBytes(value) {
   if (value == null) return new Uint8Array([]);
 
+  // Node Buffers are Uint8Array subclasses, so this covers both.
   if (value instanceof Uint8Array) return new Uint8Array(value);
-  if (Buffer.isBuffer(value)) return new Uint8Array(value);
 
   if (Array.isArray(value)) {
     // List gets handled elsewhere; here we accept array-of-bytes as a BytesLike.

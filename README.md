@@ -4,7 +4,7 @@
 
 ## QuantumCoin.js
 
-QuantumCoin.js is an **ethers.js v6-compatible** SDK surface for the QuantumCoin blockchain.
+QuantumCoin.js is a SDK for the QuantumCoin blockchain that maintains close compatibility with **ethers.js v6**.
 
 Key differences vs Ethereum/ethers:
 

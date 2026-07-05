@@ -5,7 +5,7 @@
  * The concrete JSON-RPC implementation lives in `json-rpc-provider.js`.
  */
 
-const { EventEmitter } = require("events");
+const EventEmitter = require("../internal/event-emitter");
 const qcsdk = require("quantum-coin-js-sdk");
 const { makeError, assertArgument } = require("../errors");
 const { normalizeHex, toQuantityHex, isHexString } = require("../internal/hex");

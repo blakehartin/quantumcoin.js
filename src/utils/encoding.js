@@ -3,7 +3,8 @@
  *
  * Notes:
  * - QuantumCoin addresses are 32 bytes (not 20).
- * - This module intentionally uses only built-in Node.js APIs.
+ * - This module is platform agnostic (works in Node.js and the browser) and
+ *   avoids Node-only APIs such as Buffer.
  */
 
 const {
@@ -166,8 +167,13 @@ function decodeBytes32String(bytes) {
  * @returns {Uint8Array}
  */
 function decodeBase64(data) {
-  const buf = Buffer.from(data, "base64");
-  return new Uint8Array(buf);
+  if (typeof globalThis.atob !== "function") {
+    throw new Error("base64 decoding not supported in this environment");
+  }
+  const binary = globalThis.atob(data);
+  const out = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+  return out;
 }
 
 /**
@@ -176,7 +182,13 @@ function decodeBase64(data) {
  * @returns {string}
  */
 function encodeBase64(data) {
-  return Buffer.from(arrayify(data)).toString("base64");
+  if (typeof globalThis.btoa !== "function") {
+    throw new Error("base64 encoding not supported in this environment");
+  }
+  const bytes = arrayify(data);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return globalThis.btoa(binary);
 }
 
 // Minimal base58 implementation (Bitcoin alphabet) for compatibility with ethers helpers.

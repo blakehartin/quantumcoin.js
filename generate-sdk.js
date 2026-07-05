@@ -1744,11 +1744,13 @@ function _createPackageScaffold({ outDir, pkgName, pkgDesc, pkgAuthor, pkgLicens
   const outLang = _normalizeLang(lang);
   const isTs = outLang === "ts";
 
-  const rootPkg = _readRootPackageJson();
-  const rootDeps = _rewriteFileDepsToAbsolute(rootPkg.dependencies || {}, __dirname);
-
-  // Ensure the generated package depends on this repo's quantumcoin via absolute file path.
-  rootDeps.quantumcoin = `file:${__dirname.replace(/\\\\/g, "/")}`;
+  // The generated SDK only imports from "quantumcoin" (and "quantumcoin/config").
+  // quantum-coin-js-sdk and seed-words are pulled in transitively via quantumcoin,
+  // so we intentionally do NOT copy them as direct dependencies here — the
+  // generated package.json lists only the minimum it actually needs.
+  const dependencies = {
+    quantumcoin: `file:${__dirname.replace(/\\\\/g, "/")}`,
+  };
 
   const pkgJson = {
     name: pkgName,
@@ -1774,7 +1776,7 @@ function _createPackageScaffold({ outDir, pkgName, pkgDesc, pkgAuthor, pkgLicens
             "test:e2e": "node --test --test-concurrency=1 \"test/e2e/**/*.test.js\"",
           }),
     },
-    dependencies: rootDeps,
+    dependencies,
     devDependencies: {},
   };
 

@@ -8,6 +8,8 @@ test/e2e/generated-sdks/**
 **/*.swp
 **/*.tgz
 dist/
+test-results/
+playwright-report/
 .idea
 .vscode
 **/.DS_Store
