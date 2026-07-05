@@ -11,12 +11,35 @@ export function isUint8Array(value: any): value is Uint8Array;
  */
 export function normalizeHex(hex: string): string;
 /**
- * Format a number/bigint as a JSON-RPC QUANTITY hex string (no leading zeros).
- * @param value
+ * Format a number/bigint as a JSON-RPC QUANTITY hex string.
+ *
+ * Per the Ethereum JSON-RPC spec, quantities use the most compact
+ * representation with no leading zeros, with the single exception that
+ * zero is encoded as "0x0".
+ *
+ * Use this for block numbers, gas amounts, nonces, balances, and other
+ * numeric RPC parameters. Do NOT use it for DATA hex (addresses,
+ * bytecode, byte-arrays) — use `normalizeHex` for those.
+ *
+ * @param {number|bigint} value
+ * @returns {string}
  */
 export function toQuantityHex(value: number | bigint): string;
-/** Alias of `toQuantityHex` matching ethers.js v6 naming. */
-export const toQuantity: typeof toQuantityHex;
+/**
+ * Format a number/bigint as a JSON-RPC QUANTITY hex string.
+ *
+ * Per the Ethereum JSON-RPC spec, quantities use the most compact
+ * representation with no leading zeros, with the single exception that
+ * zero is encoded as "0x0".
+ *
+ * Use this for block numbers, gas amounts, nonces, balances, and other
+ * numeric RPC parameters. Do NOT use it for DATA hex (addresses,
+ * bytecode, byte-arrays) — use `normalizeHex` for those.
+ *
+ * @param {number|bigint} value
+ * @returns {string}
+ */
+export function toQuantity(value: number | bigint): string;
 /**
  * Returns true if value is a hex string.
  * @param {any} value

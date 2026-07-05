@@ -14,7 +14,7 @@ export class Contract extends BaseContract {
     constructor(address: string, abi: any[] | Interface, providerOrSigner?: any | undefined, bytecode?: string | undefined);
     address: string;
     target: string;
-    bytecode: string;
+    bytecode: string | null;
     interface: Interface;
     provider: any;
     signer: any;
@@ -67,7 +67,7 @@ export class Contract extends BaseContract {
     connect(signerOrProvider: any): Contract;
     attach(address: any): Contract;
     deployTransaction(): any;
-    getTransactionReceipt(hash: any): Promise<ContractTransactionReceipt>;
+    getTransactionReceipt(hash: any): Promise<ContractTransactionReceipt | null>;
     waitForDeployment(): Promise<this>;
     getDeployedCode(): Promise<any>;
 }
@@ -110,4 +110,12 @@ export class ContractTransactionReceipt {
 export class EventLog {
     constructor(log: any);
 }
+/**
+ * Return a copy of `overrides` containing only the allow-listed fields.
+ * Drops `to`, `data`, `from`, and any unknown/prototype keys so the protected
+ * fields computed by the contract layer always win.
+ * @param {any} overrides
+ * @returns {Record<string, any>}
+ */
+export function _sanitizeOverrides(overrides: any): Record<string, any>;
 import { Interface } from "../abi/interface";

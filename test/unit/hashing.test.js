@@ -5,14 +5,20 @@
  * @description Hashing helpers (optional params, deterministic behavior)
  */
  
- const { describe, it } = require("node:test");
+ const { describe, it, before } = require("node:test");
  const assert = require("node:assert/strict");
  
  const qc = require("../../index");
+ const { Initialize } = require("../../config");
  const { logSuite, logTest } = require("../verbose-logger");
  
  describe("Hashing", () => {
    logSuite("Hashing");
+   before(async () => {
+     // Crypto primitives are provided by quantum-coin-js-sdk, which must be
+     // initialized before use.
+     await Initialize(null);
+   });
    it("keccak256 returns a 32-byte hex digest for empty bytes", () => {
      logTest("keccak256 returns a 32-byte hex digest for empty bytes", {});
      const out = qc.keccak256(new Uint8Array([]));

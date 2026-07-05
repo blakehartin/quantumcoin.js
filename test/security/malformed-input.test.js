@@ -6,7 +6,7 @@
  * Run with VERBOSE=1 for test names.
  */
 
-const { describe, it } = require("node:test");
+const { describe, it, before } = require("node:test");
 const assert = require("node:assert/strict");
 
 const { Initialize } = require("../../config");
@@ -97,6 +97,9 @@ describe("Security: Wallet.connect() preserves state", () => {
 
 describe("Security: KDF string password handling", () => {
   logSuite("Security: KDF string password handling");
+  before(async () => {
+    await Initialize(null);
+  });
 
   it("pbkdf2 with plain string password does not crash", async () => {
     logTest("pbkdf2 with plain string password does not crash", {});
@@ -270,6 +273,9 @@ describe("Security: Seed phrase with invalid words", () => {
 
 describe("Security: Keccak-256 test vectors", () => {
   logSuite("Security: Keccak-256 test vectors");
+  before(async () => {
+    await Initialize(null);
+  });
 
   it("keccak256 of empty bytes matches known digest", async () => {
     logTest("keccak256 of empty bytes matches known digest", {});

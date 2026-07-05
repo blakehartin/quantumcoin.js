@@ -1,5 +1,6 @@
 declare const _exports: {
     ContractFactory: typeof import("./contract-factory").ContractFactory;
+    _sanitizeOverrides(overrides: any): Record<string, any>;
     BaseContract: typeof import("./contract").BaseContract;
     Contract: typeof import("./contract").Contract;
     ContractTransactionResponse: typeof import("./contract").ContractTransactionResponse;

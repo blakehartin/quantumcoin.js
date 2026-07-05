@@ -95,9 +95,14 @@ export class Interface {
     };
     parseError(): void;
     getSighash(): void;
-    getEventTopic(): void;
-    getFallback(): any;
-    getReceive(): any;
+    /**
+     * Compute the topic0 (event signature hash) for an event.
+     * @param {string|EventFragment|any} nameOrFragment
+     * @returns {string} normalized 0x-prefixed topic hash
+     */
+    getEventTopic(nameOrFragment: string | EventFragment | any): string;
+    getFallback(): null;
+    getReceive(): null;
 }
 export class AbiCoder {
     /**

@@ -10,5 +10,5 @@
     "outDir": "dist"
   },
   "include": ["src/**/*.js"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "src/types/index.js"]
 }

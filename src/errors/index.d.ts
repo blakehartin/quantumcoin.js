@@ -1,4 +1,4 @@
-export type ErrorCode = "INVALID_ARGUMENT" | "NUMERIC_FAULT" | "BUFFER_OVERRUN" | "CALL_EXCEPTION" | "UNKNOWN_ERROR" | "NOT_IMPLEMENTED";
+export type ErrorCode = "INVALID_ARGUMENT" | "NUMERIC_FAULT" | "BUFFER_OVERRUN" | "CALL_EXCEPTION" | "UNKNOWN_ERROR" | "NOT_IMPLEMENTED" | "NOT_INITIALIZED";
 /**
  * @fileoverview Error helpers and error classes.
  *
@@ -8,7 +8,7 @@ export type ErrorCode = "INVALID_ARGUMENT" | "NUMERIC_FAULT" | "BUFFER_OVERRUN" 
  * - errors may include extra fields depending on the failure
  */
 /**
- * @typedef {"INVALID_ARGUMENT"|"NUMERIC_FAULT"|"BUFFER_OVERRUN"|"CALL_EXCEPTION"|"UNKNOWN_ERROR"|"NOT_IMPLEMENTED"} ErrorCode
+ * @typedef {"INVALID_ARGUMENT"|"NUMERIC_FAULT"|"BUFFER_OVERRUN"|"CALL_EXCEPTION"|"UNKNOWN_ERROR"|"NOT_IMPLEMENTED"|"NOT_INITIALIZED"} ErrorCode
  */
 /**
  * Returns true if the error matches the given code.
@@ -51,6 +51,14 @@ export function assert(check: any, message: string, code: ErrorCode, info?: Reco
  * @param {any} value
  */
 export function assertArgument(check: any, message: string, name: string, value: any): void;
+/**
+ * Assert an argument constraint for sensitive material (keys, seeds, passwords).
+ * Uses "[REDACTED]" instead of the actual value to prevent leaking secrets in logs.
+ * @param {any} check
+ * @param {string} message
+ * @param {string} name
+ */
+export function assertSecretArgument(check: any, message: string, name: string): void;
 /**
  * Provider error.
  */

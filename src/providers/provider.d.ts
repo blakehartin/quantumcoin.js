@@ -26,7 +26,7 @@ export type Filter = {
 /**
  * Base Provider class.
  */
-export class Provider {
+export class Provider extends EventEmitter {
 }
 /**
  * AbstractProvider base class (ethers-like).
@@ -69,9 +69,15 @@ export class AbstractProvider extends Provider {
     /**
      * Broadcasts a signed transaction.
      * @param {TransactionRequest|string} tx
+     * @param {{ expectedHash?: string }=} opts Optional. When `expectedHash` is set,
+     *   the hash returned by the node (and the fetched-back transaction's hash) must
+     *   match it, otherwise an error is thrown (do not trust the RPC node to
+     *   broadcast the exact transaction that was signed).
      * @returns {Promise<TransactionResponse>}
      */
-    sendTransaction(tx: TransactionRequest | string): Promise<TransactionResponse>;
+    sendTransaction(tx: TransactionRequest | string, opts?: {
+        expectedHash?: string;
+    } | undefined): Promise<TransactionResponse>;
     /**
      * Broadcast a signed raw transaction.
      * Alias of sendTransaction(rawTx) for clarity when doing offline signing flows.
@@ -96,10 +102,11 @@ export class AbstractProvider extends Provider {
     /**
      * Returns fee data (currently the gas price per unit of gas, in wei).
      * Supports only DynamicFeeTx (dynamic-fee transactions); other fee tx types are not supported.
-     * @param walletOrKeyType A Wallet, or a key type number (3 or 5).
-     * @param fullSign Full signing (keyType 3 only; ignored for keyType 5).
+     * @param {import("../wallet/wallet").Wallet|number} walletOrKeyType A Wallet, or a key type number (3 or 5).
+     * @param {boolean|null=} fullSign  Full signing (keyType 3 only; ignored for keyType 5).
+     * @returns {Promise<FeeData>}
      */
-    getFeeData(walletOrKeyType: import("../wallet/wallet").Wallet | number, fullSign?: boolean | null): Promise<FeeData>;
+    getFeeData(walletOrKeyType: import("../wallet/wallet").Wallet | number, fullSign?: (boolean | null) | undefined): Promise<FeeData>;
     /**
      * @param {string} address
      * @param {string=} blockTag
@@ -128,15 +135,15 @@ export class Block {
      * @param {AbstractProvider=} provider
      */
     constructor(block: any, provider?: AbstractProvider | undefined);
-    provider: AbstractProvider;
+    provider: AbstractProvider | null;
     hash: any;
     parentHash: any;
-    number: number;
-    timestamp: number;
+    number: number | null;
+    timestamp: number | null;
     transactions: any;
-    getTransaction(indexOrHash: any): Promise<TransactionResponse>;
-    getTransactionReceipt(indexOrHash: any): Promise<TransactionReceipt>;
-    getPrefetchedTransactions(): any[];
+    getTransaction(indexOrHash: any): Promise<TransactionResponse | null>;
+    getTransactionReceipt(indexOrHash: any): Promise<TransactionReceipt | null>;
+    getPrefetchedTransactions(): never[];
 }
 /**
  * Minimal TransactionResponse wrapper (ethers-like).
@@ -147,18 +154,18 @@ export class TransactionResponse {
      * @param {AbstractProvider=} provider
      */
     constructor(tx: any, provider?: AbstractProvider | undefined);
-    provider: AbstractProvider;
+    provider: AbstractProvider | null;
     hash: any;
     to: any;
     from: any;
-    nonce: number;
+    nonce: number | null;
     data: any;
     value: any;
     gasLimit: any;
-    chainId: number;
-    blockNumber: number;
+    chainId: number | null;
+    blockNumber: number | null;
     txType: number | null;
-    remarks: string;
+    remarks: string | null;
     /**
      * Wait for confirmations.
      * @param {number=} confirmations
@@ -176,16 +183,16 @@ export class TransactionReceipt {
      * @param {AbstractProvider=} provider
      */
     constructor(receipt: any, provider?: AbstractProvider | undefined);
-    provider: AbstractProvider;
+    provider: AbstractProvider | null;
     to: any;
     from: any;
     contractAddress: any;
     transactionHash: any;
     blockHash: any;
-    blockNumber: number;
-    transactionIndex: number;
+    blockNumber: number | null;
+    transactionIndex: number | null;
     gasUsed: any;
-    status: number;
+    status: number | null;
     logs: any;
 }
 /**
@@ -197,19 +204,19 @@ export class Log {
      * @param {AbstractProvider=} provider
      */
     constructor(log: any, provider?: AbstractProvider | undefined);
-    provider: AbstractProvider;
+    provider: AbstractProvider | null;
     address: any;
     topics: any;
     data: any;
     blockHash: any;
-    blockNumber: number;
+    blockNumber: number | null;
     transactionHash: any;
-    transactionIndex: number;
-    logIndex: number;
+    transactionIndex: number | null;
+    logIndex: number | null;
     removed: boolean;
-    getBlock(): Promise<Block>;
-    getTransaction(): Promise<TransactionResponse>;
-    getTransactionReceipt(): Promise<TransactionReceipt>;
+    getBlock(): Promise<Block | null>;
+    getTransaction(): Promise<TransactionResponse | null>;
+    getTransactionReceipt(): Promise<TransactionReceipt | null>;
 }
 /**
  * Fee data for a transaction. Currently only `gasPrice` (per unit of gas, in wei)
@@ -217,6 +224,10 @@ export class Log {
  * QuantumCoin uses a fixed per-scheme fee model with no EIP-1559 base fee / priority tip.
  */
 export class FeeData {
+    /**
+     * @param {bigint} gasPrice
+     */
     constructor(gasPrice: bigint);
-    gasPrice: bigint | null;
+    gasPrice: bigint;
 }
+import EventEmitter = require("../internal/event-emitter");

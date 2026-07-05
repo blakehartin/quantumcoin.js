@@ -1,4 +1,5 @@
 declare const _exports: {
+    FixedNumber: typeof import("./fixednumber").FixedNumber;
     formatUnits(value: import("./units").BigNumberish, decimals?: number | undefined): string;
     parseUnits(value: string, decimals?: number | undefined): bigint;
     formatEther(value: import("./units").BigNumberish): string;
@@ -58,6 +59,5 @@ declare const _exports: {
     }): string;
     getCreate2Address(from: string, salt: string, initCodeHash: string): string;
     computeAddress(key: string | Uint8Array): string;
-    FixedNumber: typeof import("./fixednumber").FixedNumber;
 };
 export = _exports;

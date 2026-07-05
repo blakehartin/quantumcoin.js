@@ -7,9 +7,11 @@ declare const _exports: {
     };
     assert(check: any, message: string, code: errors.ErrorCode, info?: Record<string, any> | undefined): void;
     assertArgument(check: any, message: string, name: string, value: any): void;
+    assertSecretArgument(check: any, message: string, name: string): void;
     ProviderError: typeof errors.ProviderError;
     TransactionError: typeof errors.TransactionError;
     ContractError: typeof errors.ContractError;
+    FixedNumber: typeof import("./utils/fixednumber").FixedNumber;
     formatUnits(value: import("./utils/units").BigNumberish, decimals?: number | undefined): string;
     parseUnits(value: string, decimals?: number | undefined): bigint;
     formatEther(value: import("./utils/units").BigNumberish): string;
@@ -80,6 +82,7 @@ declare const _exports: {
     StructFragment: typeof import("./abi/fragments").StructFragment;
     FallbackFragment: typeof import("./abi/fragments").FallbackFragment;
     ContractFactory: typeof import("./contract/contract-factory").ContractFactory;
+    _sanitizeOverrides(overrides: any): Record<string, any>;
     BaseContract: typeof import("./contract/contract").BaseContract;
     Contract: typeof import("./contract/contract").Contract;
     ContractTransactionResponse: typeof import("./contract/contract").ContractTransactionResponse;

@@ -8,12 +8,25 @@
 const { AbstractProvider } = require("./provider");
 const { JsonRpcProvider } = require("./json-rpc-provider");
 const { makeError } = require("../errors");
-const net = require("node:net");
 const { JsonRpcSigner } = require("../wallet/wallet");
 const { normalizeHex, isHexString } = require("../internal/hex");
 
 const MAX_RESPONSE_SIZE = 16 * 1024 * 1024;
 const MAX_IPC_BUFFER = 16 * 1024 * 1024;
+
+/**
+ * Lazily load Node's "net" module. IPC transport is Node-only; loading it on
+ * demand keeps the providers barrel importable in browsers (where bundlers can
+ * exclude "node:net" via the package "browser" field).
+ * @returns {import("node:net")}
+ */
+function _requireNet() {
+  try {
+    return require("node:net");
+  } catch {
+    throw makeError("IPC not available in this environment", "NOT_IMPLEMENTED", {});
+  }
+}
 
 function _bigIntReplacer(_key, value) {
   return typeof value === "bigint" ? "0x" + value.toString(16) : value;
@@ -297,6 +310,7 @@ class IpcSocketProvider extends AbstractProvider {
       /** @type {string} */
       let buffer = "";
 
+      const net = _requireNet();
       const socket = net.createConnection(this.path);
       socket.setEncoding("utf8");
       socket.setTimeout(30_000);

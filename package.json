@@ -1,9 +1,12 @@
 {
   "name": "quantumcoin",
-  "version": "7.0.16",
+  "version": "8.0.0",
   "description": "QuantumCoin.js - a post quantum cryptography SDK for QuantumCoin",
   "main": "index.js",
   "types": "src/index.d.ts",
+  "browser": {
+    "node:net": false
+  },
   "typesVersions": {
     "*": {
       "types": [
@@ -43,6 +46,8 @@
     "test:ts:integration": "npx tsx --test \"test/integration/**/*.test.ts\"",
     "test:ts:security": "npx tsx --test \"test/security/**/*.test.ts\"",
     "test:ts:e2e": "npx tsx --test --test-concurrency=1 \"test/e2e/*.test.ts\" \"test/e2e/*.e2e.test.ts\" \"test/e2e/*.dynamic.test.ts\"",
+    "test:browser:build": "node test/browser/build.js",
+    "test:browser": "npm run test:browser:build && npx playwright test",
     "example": "node examples/example.js",
     "example:ts": "npx tsx examples/example.ts",
     "example:provider": "node examples/example.js",
@@ -67,7 +72,15 @@
     "url": "git+https://github.com/quantumcoinproject/quantumcoin.js.git"
   },
   "files": [
-    "**"
+    "index.js",
+    "config.js",
+    "config.d.ts",
+    "generate-sdk.js",
+    "src/**/*.js",
+    "src/**/*.d.ts",
+    "README.md",
+    "README-SDK.md",
+    "LICENSE"
   ],
   "keywords": [
     "cryptography",
@@ -86,11 +99,13 @@
     "sdkgen": "./generate-sdk.js"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "esbuild": "^0.28.1",
     "tsx": "^4.19.0"
   },
   "dependencies": {
-    "seed-words": "^1.0.2",
-    "quantum-coin-js-sdk": "1.0.39"
+    "quantum-coin-js-sdk": "2.1.1",
+    "seed-words": "^1.1.1"
   },
   "allowScripts": {
     "esbuild@0.28.1": true
